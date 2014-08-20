@@ -603,11 +603,12 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
-  LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
-  if [ "$cpu" = "x86_64" ] ; then
-    QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
-    LDFLAGS="-arch x86_64 $LDFLAGS"
-  fi
+  #LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
+  LDFLAGS_SHARED="$LDFLAGS"
+  #if [ "$cpu" = "x86_64" ] ; then
+  #  QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
+  #  LDFLAGS="-arch x86_64 $LDFLAGS"
+  #fi
   cocoa="yes"
   audio_drv_list="coreaudio"
   audio_possible_drivers="coreaudio sdl fmod"
@@ -1182,14 +1183,14 @@ case "$cpu" in
            LDFLAGS="-m64 $LDFLAGS"
            ;;
     i386)
-           CPU_CFLAGS="-m32"
-           LDFLAGS="-m32 $LDFLAGS"
-           cc_i386='$(CC) -m32'
+           #CPU_CFLAGS="-m32"
+           #LDFLAGS="-m32 $LDFLAGS"
+           #cc_i386='$(CC) -m32'
            ;;
     x86_64)
-           CPU_CFLAGS="-m64"
-           LDFLAGS="-m64 $LDFLAGS"
-           cc_i386='$(CC) -m32'
+           #CPU_CFLAGS="-m64"
+           #LDFLAGS="-m64 $LDFLAGS"
+           #cc_i386='$(CC) -m32'
            ;;
     x32)
            CPU_CFLAGS="-mx32"

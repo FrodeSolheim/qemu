@@ -99,12 +99,16 @@ static void slirp_smb_cleanup(SlirpState *s);
 static inline void slirp_smb_cleanup(SlirpState *s) { }
 #endif
 
+#ifdef QEMU_UAE
+/* slirp_output is defined in qemu-uae-slirp.c */
+#else
 void slirp_output(void *opaque, const uint8_t *pkt, int pkt_len)
 {
     SlirpState *s = opaque;
 
     qemu_send_packet(&s->nc, pkt, pkt_len);
 }
+#endif
 
 static ssize_t net_slirp_receive(NetClientState *nc, const uint8_t *buf, size_t size)
 {

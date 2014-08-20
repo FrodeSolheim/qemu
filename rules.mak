@@ -1,3 +1,4 @@
+V = 1
 
 # Don't use implicit rules or variables
 # we have explicit rules for everything
@@ -60,7 +61,7 @@ expand-objs = $(strip $(sort $(filter %.o,$1)) \
 
 # If we have a CXX we might have some C++ objects, in which case we
 # must link with the C++ compiler, not the plain C compiler.
-LINKPROG = $(or $(CXX),$(CC))
+LINKPROG = $(or $(CXX),$(CC)) -shared
 
 ifeq ($(LIBTOOL),)
 LINK = $(call quiet-command, $(LINKPROG) $(QEMU_CFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ \
@@ -102,7 +103,7 @@ endif
 %.o: %.dtrace
 	$(call quiet-command,dtrace -o $@ -G -s $<, "  GEN   $(TARGET_DIR)$@")
 
-%$(DSOSUF): CFLAGS += -fPIC -DBUILD_DSO
+# %$(DSOSUF): CFLAGS += -fPIC -DBUILD_DSO
 %$(DSOSUF): LDFLAGS += $(LDFLAGS_SHARED)
 %$(DSOSUF): %.mo
 	$(call LINK,$^)
@@ -368,3 +369,12 @@ define unnest-vars
         $(eval $v := $(foreach o,$($v),$(if $($o-objs),$($o-objs),$o))))
 
 endef
+
+# set include path for FS-UAE ppc.h
+QEMU_CFLAGS += -I$(SRC_PATH)/../fs-uae/src/include
+
+# set include path for WINUAE ppc.h
+QEMU_CFLAGS += -I$(SRC_PATH)/../include
+
+# only on of the above dirs will exist, so...
+QEMU_CFLAGS += -Wno-missing-include-dirs

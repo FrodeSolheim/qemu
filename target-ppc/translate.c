@@ -29,6 +29,9 @@
 
 #include "trace-tcg.h"
 
+#ifdef QEMU_UAE
+#include "uae/log.h"
+#endif
 
 #define CPU_SINGLE_STEP 0x1
 #define CPU_BRANCH_STEP 0x2
@@ -336,6 +339,12 @@ static inline void gen_debug_exception(DisasContext *ctx)
 
 static inline void gen_inval_exception(DisasContext *ctx, uint32_t error)
 {
+#ifdef QEMU_UAE
+#if 0
+    uae_log("gen_exception_err(ctx, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL | %d)\n", error);
+    uae_log("                  nip=%08x opcode=%08x\n", ctx->nip, ctx->opcode);
+#endif
+#endif
     gen_exception_err(ctx, POWERPC_EXCP_PROGRAM, POWERPC_EXCP_INVAL | error);
 }
 

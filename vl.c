@@ -119,6 +119,8 @@ int main(int argc, char **argv)
 #include "qom/object_interfaces.h"
 #include "qapi-event.h"
 
+#include "uae/qemu-uae.h"
+
 #define DEFAULT_RAM_SIZE 128
 
 #define MAX_VIRTIO_CONSOLES 1
@@ -672,7 +674,7 @@ bool runstate_check(RunState state)
     return current_run_state == state;
 }
 
-static void runstate_init(void)
+void runstate_init(void)
 {
     const RunStateTransition *p;
 
@@ -1822,7 +1824,7 @@ void qemu_system_debug_request(void)
     qemu_notify_event();
 }
 
-static bool main_loop_should_exit(void)
+bool main_loop_should_exit(void)
 {
     RunState r;
     if (qemu_debug_requested()) {
@@ -1867,15 +1869,28 @@ static bool main_loop_should_exit(void)
     return false;
 }
 
-static void main_loop(void)
+void main_loop(void)
 {
     bool nonblocking;
+#ifdef QEMU_UAE
+    //int last_io = 1;
     int last_io = 0;
+#else
+    int last_io = 0;
+#endif
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
     do {
+#ifdef QEMU_UAE
+        if (qemu_uae_main_loop_should_exit()) {
+            break;
+        }
+#endif
         nonblocking = !kvm_enabled() && !xen_enabled() && last_io > 0;
+#ifdef QEMU_UAE
+        //nonblocking = 1;
+#endif
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
 #endif
@@ -2735,7 +2750,12 @@ out:
     return 0;
 }
 
+#ifdef QEMU_UAE
+int qemu_main(int argc, char **argv, char **envp);
+int qemu_main(int argc, char **argv, char **envp)
+#else
 int main(int argc, char **argv, char **envp)
+#endif
 {
     int i;
     int snapshot, linux_boot;

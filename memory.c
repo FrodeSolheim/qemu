@@ -26,6 +26,10 @@
 #include "exec/ram_addr.h"
 #include "sysemu/sysemu.h"
 
+#ifdef QEMU_UAE
+#include "uae/log.h"
+#endif
+
 //#define DEBUG_UNASSIGNED
 
 static unsigned memory_region_transaction_depth;
@@ -1000,7 +1004,11 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
 #ifdef DEBUG_UNASSIGNED
+#ifdef QEMU_UAE
+    uae_log("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#else
     printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#endif
 #endif
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
@@ -1012,7 +1020,11 @@ static void unassigned_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
 #ifdef DEBUG_UNASSIGNED
+#ifdef QEMU_UAE
+    uae_log("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
+#else
     printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
+#endif
 #endif
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, true, false, 0, size);

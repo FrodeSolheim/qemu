@@ -64,6 +64,9 @@
 
 #endif /* CONFIG_LINUX */
 
+#include "uae/log.h"
+#include "uae/qemu-uae.h"
+
 static CPUState *next_cpu;
 int64_t max_delay;
 int64_t max_advance;
@@ -301,12 +304,14 @@ static void icount_adjust(void)
         && icount_time_shift > 0) {
         /* The guest is getting too far ahead.  Slow time down.  */
         icount_time_shift--;
+        uae_log("PPC: icount_time_shift = %d\n", icount_time_shift);
     }
     if (delta < 0
         && last_delta - ICOUNT_WOBBLE > delta * 2
         && icount_time_shift < MAX_ICOUNT_SHIFT) {
         /* The guest is getting too far behind.  Speed time up.  */
         icount_time_shift++;
+        uae_log("PPC: icount_time_shift = %d\n", icount_time_shift);
     }
     last_delta = delta;
     timers_state.qemu_icount_bias = cur_icount
@@ -787,6 +792,11 @@ static QemuMutex qemu_global_mutex;
 static QemuCond qemu_io_proceeded_cond;
 static bool iothread_requesting_mutex;
 
+#ifdef QEMU_UAE
+static QemuCond qemu_uae_proceeded_cond;
+static bool uae_requesting_mutex;
+#endif
+
 static QemuThread io_thread;
 
 static QemuThread *tcg_cpu_thread;
@@ -806,6 +816,10 @@ void qemu_init_cpu_loop(void)
     qemu_cond_init(&qemu_work_cond);
     qemu_cond_init(&qemu_io_proceeded_cond);
     qemu_mutex_init(&qemu_global_mutex);
+
+#ifdef QEMU_UAE
+    qemu_cond_init(&qemu_uae_proceeded_cond);
+#endif
 
     qemu_thread_get_self(&io_thread);
 }
@@ -885,7 +899,7 @@ static void flush_queued_work(CPUState *cpu)
     qemu_cond_broadcast(&qemu_work_cond);
 }
 
-static void qemu_wait_io_event_common(CPUState *cpu)
+void qemu_wait_io_event_common(CPUState *cpu)
 {
     if (cpu->stop) {
         cpu->stop = false;
@@ -896,7 +910,7 @@ static void qemu_wait_io_event_common(CPUState *cpu)
     cpu->thread_kicked = false;
 }
 
-static void qemu_tcg_wait_io_event(void)
+void qemu_tcg_wait_io_event(void)
 {
     CPUState *cpu;
 
@@ -910,6 +924,12 @@ static void qemu_tcg_wait_io_event(void)
     while (iothread_requesting_mutex) {
         qemu_cond_wait(&qemu_io_proceeded_cond, &qemu_global_mutex);
     }
+
+#ifdef QEMU_UAE
+    while (uae_requesting_mutex) {
+        qemu_cond_wait(&qemu_uae_proceeded_cond, &qemu_global_mutex);
+    }
+#endif
 
     CPU_FOREACH(cpu) {
         qemu_wait_io_event_common(cpu);
@@ -1003,7 +1023,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 #endif
 }
 
-static void tcg_exec_all(void);
+void tcg_exec_all(void);
 
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
@@ -1137,6 +1157,61 @@ void qemu_mutex_unlock_iothread(void)
     qemu_mutex_unlock(&qemu_global_mutex);
 }
 
+#ifdef QEMU_UAE
+
+void qemu_uae_mutex_lock(void)
+{
+    if (!tcg_enabled()) {
+        qemu_mutex_lock(&qemu_global_mutex);
+    } else {
+        uae_requesting_mutex = true;
+        if (qemu_mutex_trylock(&qemu_global_mutex)) {
+            qemu_cpu_kick_thread(first_cpu);
+            qemu_mutex_lock(&qemu_global_mutex);
+        }
+        uae_requesting_mutex = false;
+        qemu_cond_broadcast(&qemu_uae_proceeded_cond);
+    }
+}
+
+void qemu_uae_mutex_unlock(void)
+{
+    qemu_mutex_unlock(&qemu_global_mutex);
+}
+
+static bool uae_trylock_status;
+
+int qemu_uae_mutex_trylock(void)
+{
+    assert(tcg_enabled());
+
+    uae_requesting_mutex = true;
+    int result = qemu_mutex_trylock(&qemu_global_mutex);
+    if (result) {
+        /* Lock was not acquired */
+        if (uae_trylock_status == false) {
+            qemu_cpu_kick_thread(first_cpu);
+            uae_trylock_status = true;
+        }
+    } else {
+        uae_trylock_status = false;
+        uae_requesting_mutex = false;
+        qemu_cond_broadcast(&qemu_uae_proceeded_cond);
+    }
+    return result;
+}
+
+void qemu_uae_mutex_trylock_cancel(void)
+{
+    assert(tcg_enabled());
+    assert(uae_trylock_status == true);
+
+    uae_requesting_mutex = false;
+    uae_trylock_status = false;
+}
+
+#endif
+
 static int all_vcpus_paused(void)
 {
     CPUState *cpu;
@@ -1213,6 +1288,7 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
         tcg_halt_cond = cpu->halt_cond;
         snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
                  cpu->cpu_index);
+        uae_log("PPC: Creating thread %s\n", thread_name);
         qemu_thread_create(cpu->thread, thread_name, qemu_tcg_cpu_thread_fn,
                            cpu, QEMU_THREAD_JOINABLE);
 #ifdef _WIN32
@@ -1366,7 +1442,7 @@ static int tcg_cpu_exec(CPUArchState *env)
     return ret;
 }
 
-static void tcg_exec_all(void)
+void tcg_exec_all(void)
 {
     int r;
 
