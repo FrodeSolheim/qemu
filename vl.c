@@ -42,10 +42,12 @@
 #if defined(__APPLE__) || defined(main)
 #include <SDL.h>
 int qemu_main(int argc, char **argv, char **envp);
+#if 0
 int main(int argc, char **argv)
 {
     return qemu_main(argc, argv, NULL);
 }
+#endif
 #undef main
 #define main qemu_main
 #endif
@@ -2904,7 +2906,8 @@ out:
     return 0;
 }
 
-int main(int argc, char **argv, char **envp)
+int xxx_main(int argc, char **argv, char **envp);
+int xxx_main(int argc, char **argv, char **envp)
 {
     int i;
     int snapshot, linux_boot;

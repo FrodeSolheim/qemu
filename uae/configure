@@ -1,0 +1,49 @@
+#!/bin/sh -e
+
+#--cpu=i686 \
+
+#CFLAGS="-I../src -I../../src -DUAE -O0 -g" \
+
+cd .. && \
+CFLAGS="-DUAE -O0 -g" \
+./configure \
+--target-list=ppc-softmmu \
+--disable-strip \
+--disable-sdl \
+--disable-stack-protector \
+--disable-gtk \
+--disable-virtfs \
+--disable-vnc \
+--disable-xen \
+--disable-brlapi \
+--disable-curses \
+--disable-curl \
+--disable-bluez \
+--disable-slirp \
+--disable-kvm \
+--disable-rdma \
+--disable-user \
+--disable-uuid \
+--disable-vde \
+--disable-netmap \
+--disable-cap-ng \
+--disable-attr \
+--disable-docs \
+--disable-vhost-net \
+--disable-spice \
+--disable-libiscsi \
+--disable-libnfs \
+--disable-smartcard-nss \
+--disable-libusb \
+--disable-lzo \
+--disable-snappy \
+--disable-guest-agent \
+--disable-seccomp \
+--disable-glusterfs \
+--disable-tpm \
+--disable-libssh2 \
+--disable-vhdx \
+--disable-quorum \
+--disable-numa \
+--disable-coroutine-pool \
+--disable-pie
