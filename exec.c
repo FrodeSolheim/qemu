@@ -1251,6 +1251,9 @@ ram_addr_t last_ram_offset(void)
 
 static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
 {
+#ifdef QEMU_UAE
+    /* We do not have a valid current_machine pointer. */
+#else
     int ret;
 
     /* Use MADV_DONTDUMP, if user doesn't want the guest memory in the core */
@@ -1262,6 +1265,7 @@ static void qemu_ram_setup_dump(void *addr, ram_addr_t size)
                             "but dump_guest_core=off specified\n");
         }
     }
+#endif
 }
 
 /* Called within an RCU critical section, or while the ramlist lock

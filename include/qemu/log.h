@@ -25,7 +25,11 @@ extern int qemu_loglevel;
  */
 static inline bool qemu_log_enabled(void)
 {
+#ifdef QEMU_UAE
+    return true;
+#else
     return qemu_logfile != NULL;
+#endif
 }
 
 #define CPU_LOG_TB_OUT_ASM (1 << 0)

@@ -1,4 +1,88 @@
 #!/bin/sh
+
+if [ "$1" != "--target-list=ppc-softmmu" ]; then
+echo "configuring qemu-uae $@"
+
+CFLAGS="-DQEMU_UAE $CFLAGS"
+
+CFLAGS="-DDEBUG_UNASSIGNED $CFLAGS"
+# CFLAGS="-DDEBUG_OP $CFLAGS"
+# CFLAGS="-DDEBUG_EXCEPTIONS $CFLAGS"
+
+# CFLAGS="-DDEBUG_DISAS $CFLAGS"
+# CFLAGS="-DPPC_DEBUG_DISAS $CFLAGS"
+
+# CFLAGS="-DPPC_DEBUG_IRQ $CFLAGS"
+
+# CFLAGS="-DPPC_DEBUG_TB $CFLAGS"
+# CFLAGS="-DDEBUG_MMU $CFLAGS"
+
+# CFLAGS="-DDEBUG_BATS $CFLAGS"
+# CFLAGS="-DDUMP_PAGE_TABLES $CFLAGS"
+# CFLAGS="-DDEBUG_SOFTWARE_TLB $CFLAGS"
+# CFLAGS="-DFLUSH_ALL_TLBS $CFLAGS"
+
+OS_NAME=`uname -s`
+case $OS_NAME in
+MINGW32*)
+	export CC=gcc
+	export CXX=g++
+;;
+*)
+	CFLAGS="-fPIC $CFLAGS"
+;;
+esac
+
+CFLAGS="$CFLAGS" ./configure \
+--target-list=ppc-softmmu \
+--disable-tools \
+--disable-werror \
+--disable-strip \
+--disable-sdl \
+--disable-stack-protector \
+--disable-gtk \
+--disable-virtfs \
+--disable-vnc \
+--disable-xen \
+--disable-brlapi \
+--disable-curses \
+--disable-curl \
+--disable-bluez \
+--disable-kvm \
+--disable-rdma \
+--disable-user \
+--disable-uuid \
+--disable-vde \
+--disable-netmap \
+--disable-cap-ng \
+--disable-attr \
+--disable-docs \
+--disable-vhost-net \
+--disable-spice \
+--disable-libiscsi \
+--disable-libnfs \
+--disable-smartcard-nss \
+--disable-libusb \
+--disable-lzo \
+--disable-snappy \
+--disable-guest-agent \
+--disable-seccomp \
+--disable-glusterfs \
+--disable-tpm \
+--disable-libssh2 \
+--disable-vhdx \
+--disable-quorum \
+--disable-numa \
+--disable-coroutine-pool \
+--disable-pie \
+--without-system-pixman \
+--disable-linux-aio \
+"$@"
+exit $?
+
+fi
+
+#!/bin/sh
 #
 # qemu configure script (c) 2003 Fabrice Bellard
 #
@@ -604,11 +688,12 @@ OpenBSD)
 Darwin)
   bsd="yes"
   darwin="yes"
-  LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
-  if [ "$cpu" = "x86_64" ] ; then
-    QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
-    LDFLAGS="-arch x86_64 $LDFLAGS"
-  fi
+  #LDFLAGS_SHARED="-bundle -undefined dynamic_lookup"
+  LDFLAGS_SHARED="$LDFLAGS"
+  #if [ "$cpu" = "x86_64" ] ; then
+  #  QEMU_CFLAGS="-arch x86_64 $QEMU_CFLAGS"
+  #  LDFLAGS="-arch x86_64 $LDFLAGS"
+  #fi
   cocoa="yes"
   audio_drv_list="coreaudio"
   audio_possible_drivers="coreaudio sdl fmod"
@@ -1187,14 +1272,14 @@ case "$cpu" in
            LDFLAGS="-m64 $LDFLAGS"
            ;;
     i386)
-           CPU_CFLAGS="-m32"
-           LDFLAGS="-m32 $LDFLAGS"
-           cc_i386='$(CC) -m32'
+           #CPU_CFLAGS="-m32"
+           #LDFLAGS="-m32 $LDFLAGS"
+           #cc_i386='$(CC) -m32'
            ;;
     x86_64)
-           CPU_CFLAGS="-m64"
-           LDFLAGS="-m64 $LDFLAGS"
-           cc_i386='$(CC) -m32'
+           #CPU_CFLAGS="-m64"
+           #LDFLAGS="-m64 $LDFLAGS"
+           #cc_i386='$(CC) -m32'
            ;;
     x32)
            CPU_CFLAGS="-mx32"
