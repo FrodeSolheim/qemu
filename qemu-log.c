@@ -20,6 +20,10 @@
 #include "qemu-common.h"
 #include "qemu/log.h"
 
+#ifdef QEMU_UAE
+#include "uae/log.h"
+#endif
+
 static char *logfilename;
 FILE *qemu_logfile;
 int qemu_loglevel;
@@ -30,9 +34,13 @@ void qemu_log(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
+#ifdef QEMU_UAE
+    UAE_LOG_VA_ARGS(fmt, ap);
+#else
     if (qemu_logfile) {
         vfprintf(qemu_logfile, fmt, ap);
     }
+#endif
     va_end(ap);
 }
 
@@ -42,7 +50,11 @@ void qemu_log_mask(int mask, const char *fmt, ...)
 
     va_start(ap, fmt);
     if ((qemu_loglevel & mask) && qemu_logfile) {
+#ifdef QEMU_UAE
+        UAE_LOG_VA_ARGS(fmt, ap);
+#else
         vfprintf(qemu_logfile, fmt, ap);
+#endif
     }
     va_end(ap);
 }

@@ -25,13 +25,18 @@ QEMU_PROG=qemu-system-$(TARGET_NAME)$(EXESUF)
 ifneq (,$(findstring -mwindows,$(libs_softmmu)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
 QEMU_PROGW=qemu-system-$(TARGET_NAME)w$(EXESUF)
+ifdef QEMU_UAE_FALSE
 $(QEMU_PROG): $(QEMU_PROGW)
 	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
+endif
 QEMU_PROG_BUILD = $(QEMU_PROGW)
 else
 QEMU_PROG_BUILD = $(QEMU_PROG)
 endif
 endif
+
+QEMU_PROG = ../qemu-uae$(DSOSUF)
+QEMU_PROG_BUILD = $(QEMU_PROG)
 
 PROGS=$(QEMU_PROG) $(QEMU_PROGW)
 STPFILES=
@@ -176,6 +181,10 @@ target-obj-y := $(target-obj-y-save)
 all-obj-y += $(common-obj-y)
 all-obj-y += $(target-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
+
+all-obj-y += ../uae/qemu-uae-cpu.o
+all-obj-y += ../uae/qemu-uae-main.o
+all-obj-y += ../uae/qemu-uae-slirp.o
 
 $(QEMU_PROG_BUILD): config-devices.mak
 
