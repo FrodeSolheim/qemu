@@ -1,7 +1,7 @@
 all: libqemu.a
 
 qemu:
-	make -C .. V=1 || exit 0
+	make -C .. V=1 LINK=/bin/true
 	find ../stubs/ -name "*.o" -delete
 	make -C .. stubs/qmp_pc_dimm_device_list.o
 	make -C .. stubs/pci-drive-hot-add.o
