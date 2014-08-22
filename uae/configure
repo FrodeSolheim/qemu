@@ -1,13 +1,9 @@
 #!/bin/sh -e
-
-#--cpu=i686 \
-
-#CFLAGS="-I../src -I../../src -DUAE -O0 -g" \
-
 cd .. && \
-CFLAGS="-DUAE -O0 -g" \
+CFLAGS="-DUAE" \
 ./configure \
 --target-list=ppc-softmmu \
+--static \
 --disable-strip \
 --disable-sdl \
 --disable-stack-protector \
@@ -46,4 +42,4 @@ CFLAGS="-DUAE -O0 -g" \
 --disable-quorum \
 --disable-numa \
 --disable-coroutine-pool \
---disable-pie
+"$@"
