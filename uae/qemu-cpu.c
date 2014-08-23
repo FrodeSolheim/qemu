@@ -48,8 +48,10 @@
 
 #include "qemu/module.h"
 
-static PowerPCCPU *cpu = NULL;
-static CPUPPCState *env = NULL;
+static PowerPCCPU *g_cpu = NULL;
+static CPUPPCState *g_env = NULL;
+
+#if 0
 
 static void indirect_writeb (void *opaque, hwaddr addr, uint32_t value)
 {
@@ -107,8 +109,50 @@ static const MemoryRegionOps indirect_ops = {
 	.endianness = DEVICE_BIG_ENDIAN,
 };
 
-MemoryRegion *ram;
-MemoryRegion uae_mem;
+#endif
+
+static uint64_t indirect_read(void *opaque, hwaddr addr, unsigned size)
+{
+    addr += (uintptr_t) opaque;
+    if (size == 8) {
+        uint64_t retval = 0;
+        uae_ppc_io_mem_read64(addr, &retval);
+        return retval;
+    }
+    else {
+        uint32_t retval = 0;
+        uae_ppc_io_mem_read(addr, &retval, size);
+        return retval;
+    }
+}
+
+static void indirect_write(void *opaque, hwaddr addr, uint64_t data, unsigned size)
+{
+    addr += (uintptr_t) opaque;
+    if (size == 8) {
+        uae_ppc_io_mem_write64(addr, data);
+    }
+    else {
+        //printf("%s: 0x%08x => 0x%08" PRIx32 "\n", __func__, (uint32_t) addr, value);
+        uae_ppc_io_mem_write(addr, data, size);
+    }
+}
+
+static const MemoryRegionOps indirect_ops = {
+	.read = indirect_read,
+	.write = indirect_write,
+	.endianness = DEVICE_BIG_ENDIAN,
+	.valid = {
+		.min_access_size = 1,
+		.max_access_size = 8,
+		//.unaligned = true,
+	},
+	.impl = {
+		.min_access_size = 1,
+		.max_access_size = 8,
+		//.unaligned = true,
+	},
+};
 
 static bool initialize(uint32_t pvr)
 {
@@ -141,8 +185,8 @@ static bool initialize(uint32_t pvr)
 	}
 
 	printf("Initializing PPC CPU model %s (0x%08x)\n", cpu_model, pvr);
-	cpu = cpu_ppc_init(cpu_model);
-	env = &cpu->env;
+	g_cpu = cpu_ppc_init(cpu_model);
+	g_env = &g_cpu->env;
 
 	// needed to initialize system_memory variable
 	printf("cpu_exec_init_all\n");
@@ -150,12 +194,12 @@ static bool initialize(uint32_t pvr)
 
 	// set time-base frequency to XX Mhz (??)
 	// needed to initialize the translation engine
-	cpu_ppc_tb_init(env, 66UL * 1000UL * 1000UL);
+	cpu_ppc_tb_init(g_env, 66UL * 1000UL * 1000UL);
 
 	// perhaps needed
 	ppc_translate_init();
 
-	hreg_store_msr(env, 1 << MSR_EP, 0);
+	hreg_store_msr(g_env, 1 << MSR_EP, 0);
 
 	return true;
 }
@@ -167,8 +211,8 @@ bool ppc_cpu_init(uint32_t pvr)
 		return false;
 	}
 
-	if (env->spr[SPR_PVR] != pvr) {
-		printf("PVR (0x%08x) does not match requested PVR (0x%08x)\n", env->spr[SPR_PVR], pvr);;
+	if (g_env->spr[SPR_PVR] != pvr) {
+		printf("PVR (0x%08x) does not match requested PVR (0x%08x)\n", g_env->spr[SPR_PVR], pvr);;
 		return false;
 	}
 
@@ -196,19 +240,19 @@ void ppc_cpu_free(void)
 void ppc_cpu_stop(void)
 {
 	printf("ppc_cpu_stop\n");
-	cpu_exit(ENV_GET_CPU(env));
+	cpu_exit(ENV_GET_CPU(g_env));
 }
 
 void ppc_cpu_atomic_raise_ext_exception(void)
 {
 	printf("ppc_cpu_atomic_raise_ext_exception\n");
-	ppc_set_irq(cpu, PPC_INTERRUPT_EXT, 1);
+	ppc_set_irq(g_cpu, PPC_INTERRUPT_EXT, 1);
 }
 
 void ppc_cpu_atomic_cancel_ext_exception(void)
 {
 	printf("ppc_cpu_atomic_cancel_ext_exception\n");
-	ppc_set_irq(cpu, PPC_INTERRUPT_EXT, 0);
+	ppc_set_irq(g_cpu, PPC_INTERRUPT_EXT, 0);
 }
 
 void ppc_cpu_set_pc(int cpu, uint32_t value)
@@ -219,13 +263,13 @@ void ppc_cpu_set_pc(int cpu, uint32_t value)
 	//assert(env->nip == 0);
 
 	// set instruction pointer (hack? better way?)
-	env->nip = value;
+	g_env->nip = value;
 }
 
 void ppc_cpu_run_continuous(void)
 {
 	printf("ppc_cpu_run_continuous\n");
-	cpu_exec(env);
+	cpu_exec(g_env);
 }
 
 void ppc_cpu_run_single(int count)
@@ -235,11 +279,11 @@ void ppc_cpu_run_single(int count)
 
 uint64_t ppc_cpu_get_dec(void)
 {
-	return cpu_ppc_load_decr(env);
+	return cpu_ppc_load_decr(g_env);
 }
 
 void ppc_cpu_do_dec(int value)
 {
 	printf("ppc_cpu_do_dec %d\n", value);
-	cpu_ppc_store_decr(env, value);
+	cpu_ppc_store_decr(g_env, value);
 }
