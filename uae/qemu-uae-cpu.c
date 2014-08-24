@@ -1,6 +1,6 @@
 /*
- *	PowerPC CPU library code for use with UAE
- *	Copyright 2014 Frode Solheim <frode@fs-uae.net>
+ * PowerPC CPU library code for use with UAE
+ * Copyright 2014 Frode Solheim <frode@fs-uae.net>
  *
  * This library is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as published by
@@ -16,9 +16,7 @@
  * along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ppc.h"
-
-#define NEED_CPU_H
+#include "uae/ppc.h"
 
 #include "hw/hw.h"
 #include "hw/timer/m48t59.h"
@@ -42,86 +40,29 @@
 #include "sysemu/qtest.h"
 #include "exec/address-spaces.h"
 #include "elf.h"
-
 #include "cpu-models.h"
 #include "helper_regs.h"
-
 #include "qemu/module.h"
+
+PPCAPI uae_ppc_io_mem_read_function g_uae_ppc_io_mem_read;
+PPCAPI uae_ppc_io_mem_write_function g_uae_ppc_io_mem_write;
+PPCAPI uae_ppc_io_mem_read64_function g_uae_ppc_io_mem_read64;
+PPCAPI uae_ppc_io_mem_write64_function g_uae_ppc_io_mem_write64;
 
 static PowerPCCPU *g_cpu = NULL;
 static CPUPPCState *g_env = NULL;
-
-#if 0
-
-static void indirect_writeb (void *opaque, hwaddr addr, uint32_t value)
-{
-	addr += (uintptr_t) opaque;
-	printf("%s: 0x%08x => 0x%08" PRIx32 "\n", __func__, (uint32_t) addr, value);
-	uae_ppc_io_mem_write(addr, value, 1);
-}
-
-static void indirect_writew (void *opaque, hwaddr addr, uint32_t value)
-{
-	addr += (uintptr_t) opaque;
-	printf("%s: 0x%08x => 0x%08" PRIx32 "\n", __func__, (uint32_t) addr, value);
-	uae_ppc_io_mem_write(addr, value, 2);
-}
-
-static void indirect_writel (void *opaque, hwaddr addr, uint32_t value)
-{
-	addr += (uintptr_t) opaque;
-	printf("%s: 0x%08x => 0x%08" PRIx32 "\n", __func__, (uint32_t) addr, value);
-	uae_ppc_io_mem_write(addr, value, 4);
-}
-
-static uint32_t indirect_readb (void *opaque, hwaddr addr)
-{
-	uint32_t retval = 0;
-	addr += (uintptr_t) opaque;
-	uae_ppc_io_mem_read(addr, &retval, 1);
-	// printf("%s: 0x%08x <= %08" PRIx32 "\n", __func__, (uint32_t) addr, retval);
-	return retval;
-}
-
-static uint32_t indirect_readw (void *opaque, hwaddr addr)
-{
-	uint32_t retval = 0;
-	addr += (uintptr_t) opaque;
-	uae_ppc_io_mem_read(addr, &retval, 2);
-	printf("%s: 0x%08x <= %08" PRIx32 "\n", __func__, (uint32_t) addr, retval);
-	return retval;
-}
-
-static uint32_t indirect_readl (void *opaque, hwaddr addr)
-{
-	uint32_t retval = 0;
-	addr += (uintptr_t) opaque;
-	uae_ppc_io_mem_read(addr, &retval, 4);
-	printf("%s: 0x%08x <= %08" PRIx32 "\n", __func__, (uint32_t) addr, retval);
-	return retval;
-}
-
-static const MemoryRegionOps indirect_ops = {
-	.old_mmio = {
-		.read = { indirect_readb, indirect_readw, indirect_readl, },
-		.write = { indirect_writeb, indirect_writew, indirect_writel, },
-	},
-	.endianness = DEVICE_BIG_ENDIAN,
-};
-
-#endif
 
 static uint64_t indirect_read(void *opaque, hwaddr addr, unsigned size)
 {
     addr += (uintptr_t) opaque;
     if (size == 8) {
         uint64_t retval = 0;
-        uae_ppc_io_mem_read64(addr, &retval);
+        g_uae_ppc_io_mem_read64(addr, &retval);
         return retval;
     }
     else {
         uint32_t retval = 0;
-        uae_ppc_io_mem_read(addr, &retval, size);
+        g_uae_ppc_io_mem_read(addr, &retval, size);
         return retval;
     }
 }
@@ -130,11 +71,11 @@ static void indirect_write(void *opaque, hwaddr addr, uint64_t data, unsigned si
 {
     addr += (uintptr_t) opaque;
     if (size == 8) {
-        uae_ppc_io_mem_write64(addr, data);
+        g_uae_ppc_io_mem_write64(addr, data);
     }
     else {
         //printf("%s: 0x%08x => 0x%08" PRIx32 "\n", __func__, (uint32_t) addr, value);
-        uae_ppc_io_mem_write(addr, data, size);
+        g_uae_ppc_io_mem_write(addr, data, size);
     }
 }
 
@@ -158,7 +99,7 @@ static bool initialize(uint32_t pvr)
 {
 	static bool initialized = false;
 	if (initialized) {
-		return;
+		return false;
 	}
 	initialized = true;
 
@@ -286,4 +227,12 @@ void ppc_cpu_do_dec(int value)
 {
 	printf("ppc_cpu_do_dec %d\n", value);
 	cpu_ppc_store_decr(g_env, value);
+}
+
+/*
+ * Just used to debug that the library initialization is run.
+ */
+static void __attribute__ ((constructor)) qemu_uae_cpu_init(void)
+{
+        printf(" ----------- qemu_uae_cpu_init ----------- \n");
 }

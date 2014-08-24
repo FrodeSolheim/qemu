@@ -1,9 +1,11 @@
 #!/bin/sh -e
+
+CFLAGS="-DUAE"
+CFLAGS="-fPIC $CFLAGS"
+
 cd .. && \
-CFLAGS="-DUAE" \
-./configure \
+CFLAGS="$CFLAGS" ./configure \
 --target-list=ppc-softmmu \
---static \
 --disable-strip \
 --disable-sdl \
 --disable-stack-protector \
@@ -42,4 +44,5 @@ CFLAGS="-DUAE" \
 --disable-quorum \
 --disable-numa \
 --disable-coroutine-pool \
+--disable-pie \
 "$@"

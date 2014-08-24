@@ -11,6 +11,9 @@ QEMU_CFLAGS += -I../linux-headers
 endif
 QEMU_CFLAGS += -I.. -I$(SRC_PATH)/target-$(TARGET_BASE_ARCH) -DNEED_CPU_H
 
+# set include path for UAE ppc.h
+QEMU_CFLAGS += -I$(SRC_PATH)/../src/include
+
 QEMU_CFLAGS+=-I$(SRC_PATH)/include
 
 ifdef CONFIG_USER_ONLY
@@ -22,14 +25,17 @@ else
 QEMU_PROG=qemu-system-$(TARGET_NAME)$(EXESUF)
 ifneq (,$(findstring -mwindows,$(libs_softmmu)))
 # Terminate program name with a 'w' because the linker builds a windows executable.
-QEMU_PROGW=qemu-system-$(TARGET_NAME)w$(EXESUF)
-$(QEMU_PROG): $(QEMU_PROGW)
-	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
-QEMU_PROG_BUILD = $(QEMU_PROGW)
-else
+#QEMU_PROGW=qemu-system-$(TARGET_NAME)w$(EXESUF)
+#$(QEMU_PROG): $(QEMU_PROGW)
+#	$(call quiet-command,$(OBJCOPY) --subsystem console $(QEMU_PROGW) $(QEMU_PROG),"  GEN   $(TARGET_DIR)$(QEMU_PROG)")
+#QEMU_PROG_BUILD = $(QEMU_PROGW)
+#else
+#QEMU_PROG_BUILD = $(QEMU_PROG)
+endif
+endif
+
+QEMU_PROG=../qemu-uae.so
 QEMU_PROG_BUILD = $(QEMU_PROG)
-endif
-endif
 
 PROGS=$(QEMU_PROG) $(QEMU_PROGW)
 STPFILES=
@@ -162,6 +168,8 @@ dummy := $(call unnest-vars,.., \
                common-obj-m)
 all-obj-y += $(common-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
+
+all-obj-y += ../uae/qemu-uae-cpu.o
 
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) ../libqemuutil.a ../libqemustub.a

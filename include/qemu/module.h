@@ -31,6 +31,9 @@ static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
 {                                                                           \
     register_dso_module_init(function, type);                               \
 }
+#ifdef UAE
+#error BUILD_DSO is defined
+#endif
 #else
 /* This should not be used directly.  Use block_init etc. instead.  */
 #define module_init(function, type)                                         \

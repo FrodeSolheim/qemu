@@ -1,4 +1,7 @@
-all: libqemu.a
+all:
+	make -C ..
+
+#all: libqemu.a
 
 qemu:
 	make -C .. V=1 LINK=/bin/true
