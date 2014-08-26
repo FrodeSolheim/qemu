@@ -41,9 +41,14 @@
 #include "cpu-models.h"
 #include "helper_regs.h"
 #include "qemu/module.h"
+#include "sysemu/cpus.h"
 
 #include "uae/logging.h"
 #include "uae/ppc.h"
+
+#ifdef UAE
+#error UAE should not be defined here
+#endif
 
 //PPCAPI uae_ppc_io_mem_read_function g_uae_ppc_io_mem_read;
 //PPCAPI uae_ppc_io_mem_write_function g_uae_ppc_io_mem_write;
@@ -110,6 +115,9 @@ static bool initialize(uint32_t pvr)
 
 	// needed to initialize timer lists
 	init_clocks();
+
+	// initialize mutexes
+	qemu_init_cpu_loop();
 
 	// allocate translation buffer (what is a suitable size?)
 	tcg_exec_init(1024 * 1024);
