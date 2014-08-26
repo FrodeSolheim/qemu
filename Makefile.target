@@ -34,7 +34,7 @@ ifneq (,$(findstring -mwindows,$(libs_softmmu)))
 endif
 endif
 
-QEMU_PROG=../qemu-uae.so
+QEMU_PROG=../qemu-uae$(DSOSUF)
 QEMU_PROG_BUILD = $(QEMU_PROG)
 
 PROGS=$(QEMU_PROG) $(QEMU_PROGW)
@@ -174,6 +174,11 @@ all-obj-y += ../uae/qemu-uae-cpu.o
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) ../libqemuutil.a ../libqemustub.a
 	$(call LINK,$^)
+#ifdef CONFIG_WIN32
+#	$(call LINK,$^) ../../uae-implib.a
+#else
+#	$(call LINK,$^)
+#endif
 
 gdbstub-xml.c: $(TARGET_XML_FILES) $(SRC_PATH)/scripts/feature_to_c.sh
 	$(call quiet-command,rm -f $@ && $(SHELL) $(SRC_PATH)/scripts/feature_to_c.sh $@ $(TARGET_XML_FILES),"  GEN   $(TARGET_DIR)$@")
