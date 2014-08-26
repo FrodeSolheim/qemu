@@ -30,7 +30,7 @@ void qemu_log(const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-#ifdef UAE
+#ifdef WITH_UAE
     vprintf(fmt, ap);
 #else
     if (qemu_logfile) {
@@ -45,7 +45,7 @@ void qemu_log_mask(int mask, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-#ifdef UAE
+#ifdef WITH_UAE
     vprintf(fmt, ap);
 #else
     if ((qemu_loglevel & mask) && qemu_logfile) {

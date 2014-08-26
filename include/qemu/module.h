@@ -31,7 +31,7 @@ static void __attribute__((constructor)) do_qemu_init_ ## function(void)    \
 {                                                                           \
     register_dso_module_init(function, type);                               \
 }
-#ifdef UAE
+#ifdef WITH_UAE
 #error BUILD_DSO is defined
 #endif
 #else

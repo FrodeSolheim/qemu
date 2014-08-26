@@ -540,7 +540,7 @@ static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
 static inline void *alloc_code_gen_buffer(void)
 {
     void *buf = static_code_gen_buffer;
-#ifdef UAE
+#ifdef WITH_UAE
     printf("alloc_code_gen_buffer (static) %p\n", buf);
 #endif
 #ifdef __mips__
@@ -591,7 +591,7 @@ static inline void *alloc_code_gen_buffer(void)
 
     buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
                PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
-#ifdef UAE
+#ifdef WITH_UAE
     printf("alloc_code_gen_buffer (mmap) %p\n", buf);
 #endif
     if (buf == MAP_FAILED) {

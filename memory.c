@@ -1017,14 +1017,14 @@ static void memory_region_initfn(Object *obj)
                         NULL, NULL, &error_abort);
 }
 
-#ifdef UAE_XXX
+#ifdef WITH_UAE_XXX
 #include "ppc/ppc-if.h"
 #endif
 
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-#ifdef UAE_XXX
+#ifdef WITH_UAE_XXX
     uint32_t data;
     uae_ppc_io_mem_read(addr, &data, size);
     return data;
@@ -1042,7 +1042,7 @@ static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
 static void unassigned_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-#ifdef UAE_XXX
+#ifdef WITH_UAE_XXX
     uae_ppc_io_mem_write(addr, val, size);
 #else
 #ifdef DEBUG_UNASSIGNED

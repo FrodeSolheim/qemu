@@ -1,11 +1,12 @@
 #!/bin/sh -e
 
-CFLAGS="-DUAE"
+CFLAGS="-DWITH_UAE"
 CFLAGS="-fPIC $CFLAGS"
 
 cd .. && \
 CFLAGS="$CFLAGS" ./configure \
 --target-list=ppc-softmmu \
+--disable-werror \
 --disable-strip \
 --disable-sdl \
 --disable-stack-protector \

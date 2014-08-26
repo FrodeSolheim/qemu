@@ -16,8 +16,6 @@
  * along with this library; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "uae/ppc.h"
-
 #include "hw/hw.h"
 #include "hw/timer/m48t59.h"
 #include "hw/i386/pc.h"
@@ -44,10 +42,13 @@
 #include "helper_regs.h"
 #include "qemu/module.h"
 
-PPCAPI uae_ppc_io_mem_read_function g_uae_ppc_io_mem_read;
-PPCAPI uae_ppc_io_mem_write_function g_uae_ppc_io_mem_write;
-PPCAPI uae_ppc_io_mem_read64_function g_uae_ppc_io_mem_read64;
-PPCAPI uae_ppc_io_mem_write64_function g_uae_ppc_io_mem_write64;
+#include "uae/logging.h"
+#include "uae/ppc.h"
+
+//PPCAPI uae_ppc_io_mem_read_function g_uae_ppc_io_mem_read;
+//PPCAPI uae_ppc_io_mem_write_function g_uae_ppc_io_mem_write;
+//PPCAPI uae_ppc_io_mem_read64_function g_uae_ppc_io_mem_read64;
+//PPCAPI uae_ppc_io_mem_write64_function g_uae_ppc_io_mem_write64;
 
 static PowerPCCPU *g_cpu = NULL;
 static CPUPPCState *g_env = NULL;
@@ -57,12 +58,12 @@ static uint64_t indirect_read(void *opaque, hwaddr addr, unsigned size)
     addr += (uintptr_t) opaque;
     if (size == 8) {
         uint64_t retval = 0;
-        g_uae_ppc_io_mem_read64(addr, &retval);
+        uae_ppc_io_mem_read64(addr, &retval);
         return retval;
     }
     else {
         uint32_t retval = 0;
-        g_uae_ppc_io_mem_read(addr, &retval, size);
+        uae_ppc_io_mem_read(addr, &retval, size);
         return retval;
     }
 }
@@ -71,11 +72,11 @@ static void indirect_write(void *opaque, hwaddr addr, uint64_t data, unsigned si
 {
     addr += (uintptr_t) opaque;
     if (size == 8) {
-        g_uae_ppc_io_mem_write64(addr, data);
+        uae_ppc_io_mem_write64(addr, data);
     }
     else {
-        //printf("%s: 0x%08x => 0x%08" PRIx32 "\n", __func__, (uint32_t) addr, value);
-        g_uae_ppc_io_mem_write(addr, data, size);
+        //uae_log("%s: 0x%08x => 0x%08" PRIx32 "\n", __func__, (uint32_t) addr, value);
+        uae_ppc_io_mem_write(addr, data, size);
     }
 }
 
@@ -104,7 +105,7 @@ static bool initialize(uint32_t pvr)
 	initialized = true;
 
 	// needed to initialize the class system (and probably other stuff)
-	printf("MODULE_INIT_QOM\n");
+	uae_log("MODULE_INIT_QOM\n");
 	module_call_init(MODULE_INIT_QOM);
 
 	// needed to initialize timer lists
@@ -121,16 +122,16 @@ static bool initialize(uint32_t pvr)
 		cpu_model = "603e7v1";
 	}
 	else {
-		printf("Unknown CPU PVR, initialization failed\n");
+		uae_log("Unknown CPU PVR, initialization failed\n");
 		return false;
 	}
 
-	printf("Initializing PPC CPU model %s (0x%08x)\n", cpu_model, pvr);
+	uae_log("Initializing PPC CPU model %s (0x%08x)\n", cpu_model, pvr);
 	g_cpu = cpu_ppc_init(cpu_model);
 	g_env = &g_cpu->env;
 
 	// needed to initialize system_memory variable
-	printf("cpu_exec_init_all\n");
+	uae_log("cpu_exec_init_all\n");
 	cpu_exec_init_all();
 
 	// set time-base frequency to XX Mhz (??)
@@ -147,13 +148,13 @@ static bool initialize(uint32_t pvr)
 
 bool ppc_cpu_init(uint32_t pvr)
 {
-	printf("ppc_cpu_init pvr=0x%08x\n", pvr);
+	uae_log("ppc_cpu_init pvr=0x%08x\n", pvr);
 	if (!initialize(pvr)) {
 		return false;
 	}
 
 	if (g_env->spr[SPR_PVR] != pvr) {
-		printf("PVR (0x%08x) does not match requested PVR (0x%08x)\n", g_env->spr[SPR_PVR], pvr);;
+		uae_log("PVR (0x%08x) does not match requested PVR (0x%08x)\n", g_env->spr[SPR_PVR], pvr);;
 		return false;
 	}
 
@@ -162,7 +163,7 @@ bool ppc_cpu_init(uint32_t pvr)
 
 void ppc_cpu_map_memory(uint32_t addr, uint32_t size, void *memory, const char *name)
 {
-	printf("ppc_cpu_map_memory %08x [size %x] => %p\n", addr, size, memory);
+	uae_log("ppc_cpu_map_memory %08x [size %x] => %p\n", addr, size, memory);
 	MemoryRegion* mem = g_new(MemoryRegion, 1);
 	if (memory != NULL) {
 		memory_region_init_ram_ptr(mem, NULL, name, size, memory);
@@ -175,30 +176,30 @@ void ppc_cpu_map_memory(uint32_t addr, uint32_t size, void *memory, const char *
 
 void ppc_cpu_free(void)
 {
-	printf("ppc_cpu_free\n");
+	uae_log("ppc_cpu_free\n");
 }
 
 void ppc_cpu_stop(void)
 {
-	printf("ppc_cpu_stop\n");
+	uae_log("ppc_cpu_stop\n");
 	cpu_exit(ENV_GET_CPU(g_env));
 }
 
 void ppc_cpu_atomic_raise_ext_exception(void)
 {
-	printf("ppc_cpu_atomic_raise_ext_exception\n");
+	uae_log("ppc_cpu_atomic_raise_ext_exception\n");
 	ppc_set_irq(g_cpu, PPC_INTERRUPT_EXT, 1);
 }
 
 void ppc_cpu_atomic_cancel_ext_exception(void)
 {
-	printf("ppc_cpu_atomic_cancel_ext_exception\n");
+	uae_log("ppc_cpu_atomic_cancel_ext_exception\n");
 	ppc_set_irq(g_cpu, PPC_INTERRUPT_EXT, 0);
 }
 
 void ppc_cpu_set_pc(int cpu, uint32_t value)
 {
-	printf("ppc_cpu_set_pc %x (cpu=%d)\n", value, cpu);
+	uae_log("ppc_cpu_set_pc %x (cpu=%d)\n", value, cpu);
 
 	// for now
 	//assert(env->nip == 0);
@@ -209,13 +210,13 @@ void ppc_cpu_set_pc(int cpu, uint32_t value)
 
 void ppc_cpu_run_continuous(void)
 {
-	printf("ppc_cpu_run_continuous\n");
+	uae_log("ppc_cpu_run_continuous\n");
 	cpu_exec(g_env);
 }
 
 void ppc_cpu_run_single(int count)
 {
-	printf("ppc_cpu_run_single count=%d\n", count);
+	uae_log("ppc_cpu_run_single count=%d\n", count);
 }
 
 uint64_t ppc_cpu_get_dec(void)
@@ -225,9 +226,15 @@ uint64_t ppc_cpu_get_dec(void)
 
 void ppc_cpu_do_dec(int value)
 {
-	printf("ppc_cpu_do_dec %d\n", value);
+	uae_log("ppc_cpu_do_dec %d\n", value);
 	cpu_ppc_store_decr(g_env, value);
 }
+
+uae_log_function uae_log = NULL;
+uae_ppc_io_mem_read_function uae_ppc_io_mem_read = NULL;
+uae_ppc_io_mem_write_function uae_ppc_io_mem_write = NULL;
+uae_ppc_io_mem_read64_function uae_ppc_io_mem_read64 = NULL;
+uae_ppc_io_mem_write64_function uae_ppc_io_mem_write64 = NULL;
 
 /*
  * Just used to debug that the library initialization is run.
