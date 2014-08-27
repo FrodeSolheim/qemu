@@ -58,6 +58,9 @@
 static PowerPCCPU *g_cpu = NULL;
 static CPUPPCState *g_env = NULL;
 
+#define BUSFREQ 66000000UL
+#define TBFREQ 16600000UL
+
 static uint64_t indirect_read(void *opaque, hwaddr addr, unsigned size)
 {
     addr += (uintptr_t) opaque;
@@ -142,9 +145,8 @@ static bool initialize(uint32_t pvr)
 	uae_log("cpu_exec_init_all\n");
 	cpu_exec_init_all();
 
-	// set time-base frequency to XX Mhz (??)
 	// needed to initialize the translation engine
-	cpu_ppc_tb_init(g_env, 66UL * 1000UL * 1000UL);
+	cpu_ppc_tb_init(g_env, TBFREQ);
 
 	// perhaps needed
 	ppc_translate_init();
