@@ -16,6 +16,10 @@
 #include <assert.h>
 #include <limits.h>
 
+#ifdef QEMU_UAE
+#include "uae/log.h"
+#endif
+
 static bool name_threads;
 
 void qemu_thread_naming(bool enable)
@@ -56,9 +60,9 @@ void qemu_mutex_lock(QemuMutex *mutex)
     /* Win32 CRITICAL_SECTIONs are recursive.  Assert that we're not
      * using them as such.
      */
-#ifdef WITH_UAE
+#ifdef QEMU_UAE
     if (mutex->owner != 0) {
-        printf("WARNING: failed assert(mutex->owner == 0)\n");
+        uae_log("WARNING: failed assert(mutex->owner == 0)\n");
     }
 #else
     assert(mutex->owner == 0);
@@ -80,10 +84,10 @@ int qemu_mutex_trylock(QemuMutex *mutex)
 
 void qemu_mutex_unlock(QemuMutex *mutex)
 {
-#ifdef WITH_UAE
-        if (mutex->owner != GetCurrentThreadId()) {
-            printf("WARNING: failed assert(mutex->owner == GetCurrentThreadId())\n");
-        }
+#ifdef QEMU_UAE
+    if (mutex->owner != GetCurrentThreadId()) {
+        uae_log("WARNING: failed assert(mutex->owner == GetCurrentThreadId())\n");
+    }
 #else
     assert(mutex->owner == GetCurrentThreadId());
 #endif

@@ -26,7 +26,11 @@
 #include "exec/ram_addr.h"
 #include "sysemu/sysemu.h"
 
-#define DEBUG_UNASSIGNED
+#ifdef QEMU_UAE
+#include "uae/log.h"
+#endif
+
+//#define DEBUG_UNASSIGNED
 
 static unsigned memory_region_transaction_depth;
 static bool memory_region_update_pending;
@@ -1017,41 +1021,35 @@ static void memory_region_initfn(Object *obj)
                         NULL, NULL, &error_abort);
 }
 
-#ifdef WITH_UAE_XXX
-#include "ppc/ppc-if.h"
-#endif
-
 static uint64_t unassigned_mem_read(void *opaque, hwaddr addr,
                                     unsigned size)
 {
-#ifdef WITH_UAE_XXX
-    uint32_t data;
-    uae_ppc_io_mem_read(addr, &data, size);
-    return data;
-#else
 #ifdef DEBUG_UNASSIGNED
+#ifdef QEMU_UAE
+    uae_log("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#else
     printf("Unassigned mem read " TARGET_FMT_plx "\n", addr);
+#endif
 #endif
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, false, false, 0, size);
     }
     return 0;
-#endif
 }
 
 static void unassigned_mem_write(void *opaque, hwaddr addr,
                                  uint64_t val, unsigned size)
 {
-#ifdef WITH_UAE_XXX
-    uae_ppc_io_mem_write(addr, val, size);
-#else
 #ifdef DEBUG_UNASSIGNED
+#ifdef QEMU_UAE
+    uae_log("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
+#else
     printf("Unassigned mem write " TARGET_FMT_plx " = 0x%"PRIx64"\n", addr, val);
+#endif
 #endif
     if (current_cpu != NULL) {
         cpu_unassigned_access(current_cpu, addr, true, false, 0, size);
     }
-#endif
 }
 
 static bool unassigned_mem_accepts(void *opaque, hwaddr addr,

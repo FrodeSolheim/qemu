@@ -41,7 +41,9 @@ QemuOptsList *qemu_find_opts(const char *group)
 
 QemuOpts *qemu_find_opts_singleton(const char *group)
 {
+#ifdef QEMU_UAE
     return NULL;
+#endif
 
     QemuOptsList *list;
     QemuOpts *opts;

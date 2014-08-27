@@ -327,3 +327,12 @@ define unnest-vars
         $(eval -include $(addsuffix *.d, $(sort $(dir $($v)))))
         $(eval $v := $(filter-out %/,$($v))))
 endef
+
+# set include path for FS-UAE ppc.h
+QEMU_CFLAGS += -I$(SRC_PATH)/../src/include
+
+# set include path for WINUAE ppc.h
+QEMU_CFLAGS += -I$(SRC_PATH)/../include
+
+# only on of the above dirs will exist, so...
+QEMU_CFLAGS += -Wno-missing-include-dirs

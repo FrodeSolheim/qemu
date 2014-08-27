@@ -60,6 +60,10 @@
 #include "translate-all.h"
 #include "qemu/timer.h"
 
+#ifdef QEMU_UAE
+#include "uae/log.h"
+#endif
+
 //#define DEBUG_TB_INVALIDATE
 //#define DEBUG_FLUSH
 /* make various TB consistency checks */
@@ -540,8 +544,8 @@ static uint8_t static_code_gen_buffer[DEFAULT_CODE_GEN_BUFFER_SIZE]
 static inline void *alloc_code_gen_buffer(void)
 {
     void *buf = static_code_gen_buffer;
-#ifdef WITH_UAE
-    printf("alloc_code_gen_buffer (static) %p\n", buf);
+#ifdef QEMU_UAE
+    uae_log("alloc_code_gen_buffer (static) %p\n", buf);
 #endif
 #ifdef __mips__
     if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
@@ -591,8 +595,8 @@ static inline void *alloc_code_gen_buffer(void)
 
     buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
                PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
-#ifdef WITH_UAE
-    printf("alloc_code_gen_buffer (mmap) %p\n", buf);
+#ifdef QEMU_UAE
+    uae_log("alloc_code_gen_buffer (mmap) %p\n", buf);
 #endif
     if (buf == MAP_FAILED) {
         return NULL;
