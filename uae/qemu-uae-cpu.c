@@ -116,8 +116,8 @@ static bool initialize(uint32_t pvr)
 	// needed to initialize timer lists
 	init_clocks();
 
-	// initialize mutexes
 	qemu_init_cpu_loop();
+	qemu_mutex_lock_iothread();
 
 	// allocate translation buffer (what is a suitable size?)
 	tcg_exec_init(1024 * 1024);
