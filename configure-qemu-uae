@@ -1,8 +1,12 @@
 #!/bin/sh -e
 
-OS_NAME=`uname -s`
-CFLAGS="-DWITH_UAE"
+CFLAGS="-DQEMU_UAE"
 
+CFLAGS="-DDEBUG_UNASSIGNED $CFLAGS"
+CFLAGS="-DDEBUG_OP $CFLAGS"
+CFLAGS="-DDEBUG_EXCEPTIONS $CFLAGS"
+
+OS_NAME=`uname -s`
 case $OS_NAME in
 MINGW32*)
 	export CC=gcc
@@ -13,9 +17,9 @@ MINGW32*)
 ;;
 esac
 
-cd .. && \
 CFLAGS="$CFLAGS" ./configure \
 --target-list=ppc-softmmu \
+--disable-tools \
 --disable-werror \
 --disable-strip \
 --disable-sdl \

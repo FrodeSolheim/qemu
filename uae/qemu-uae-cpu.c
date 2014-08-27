@@ -43,7 +43,7 @@
 #include "qemu/module.h"
 #include "sysemu/cpus.h"
 
-#include "uae/logging.h"
+#include "uae/log.h"
 #include "uae/ppc.h"
 
 #ifdef UAE
