@@ -55,6 +55,10 @@
 //PPCAPI uae_ppc_io_mem_read64_function g_uae_ppc_io_mem_read64;
 //PPCAPI uae_ppc_io_mem_write64_function g_uae_ppc_io_mem_write64;
 
+static struct {
+    volatile int pause;
+} state;
+
 static PowerPCCPU *g_cpu = NULL;
 static CPUPPCState *g_env = NULL;
 
@@ -275,6 +279,12 @@ void ppc_cpu_run_continuous(void)
                     //qemu_clock_run_all_timers();
                 }
             }
+
+            while (state.pause) {
+                /* very basic pause function, just sleeping 1ms in a loop */
+                g_usleep(1000);
+            }
+
             qemu_tcg_wait_io_event();
         }
 }
@@ -293,6 +303,12 @@ void ppc_cpu_do_dec(int value)
 {
 	uae_log("ppc_cpu_do_dec %d\n", value);
 	cpu_ppc_store_decr(g_env, value);
+}
+
+void ppc_cpu_pause(int pause)
+{
+    uae_log("ppc_cpu_pause %d\n", pause);
+    state.pause = pause;
 }
 
 uae_log_function uae_log = NULL;
