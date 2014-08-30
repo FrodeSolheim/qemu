@@ -806,7 +806,7 @@ static void flush_queued_work(CPUState *cpu)
     qemu_cond_broadcast(&qemu_work_cond);
 }
 
-static void qemu_wait_io_event_common(CPUState *cpu)
+void qemu_wait_io_event_common(CPUState *cpu)
 {
     if (cpu->stop) {
         cpu->stop = false;
@@ -817,7 +817,7 @@ static void qemu_wait_io_event_common(CPUState *cpu)
     cpu->thread_kicked = false;
 }
 
-static void qemu_tcg_wait_io_event(void)
+void qemu_tcg_wait_io_event(void)
 {
     CPUState *cpu;
 
@@ -924,7 +924,7 @@ static void *qemu_dummy_cpu_thread_fn(void *arg)
 #endif
 }
 
-static void tcg_exec_all(void);
+void tcg_exec_all(void);
 
 static void *qemu_tcg_cpu_thread_fn(void *arg)
 {
@@ -1285,7 +1285,7 @@ static int tcg_cpu_exec(CPUArchState *env)
     return ret;
 }
 
-static void tcg_exec_all(void)
+void tcg_exec_all(void)
 {
     int r;
 

@@ -655,7 +655,7 @@ bool runstate_check(RunState state)
     return current_run_state == state;
 }
 
-static void runstate_init(void)
+void runstate_init(void)
 {
     const RunStateTransition *p;
 

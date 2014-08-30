@@ -153,6 +153,8 @@ static bool initialize(uint32_t pvr)
 
 	hreg_store_msr(g_env, 1 << MSR_EP, 0);
 
+	configure_icount("auto");
+
 	return true;
 }
 
@@ -218,10 +220,63 @@ void ppc_cpu_set_pc(int cpu, uint32_t value)
 	g_env->nip = value;
 }
 
+void runstate_init(void);
+void tcg_exec_all(void);
+void qemu_tcg_wait_io_event(void);
+void qemu_wait_io_event_common(CPUState *cpu);
+
 void ppc_cpu_run_continuous(void)
 {
 	uae_log("ppc_cpu_run_continuous\n");
-	cpu_exec(g_env);
+
+	runstate_init();
+
+	cpu_enable_ticks();
+	runstate_set(RUN_STATE_RUNNING);
+	vm_state_notify(1, RUN_STATE_RUNNING);
+	resume_all_vcpus();
+
+	//cpu_exec(g_env);
+#if 0
+        //CPUState *cpu = arg;
+        CPUState *cpu = ENV_GET_CPU(g_env);
+
+        //qemu_tcg_init_cpu_signals();
+        qemu_thread_get_self(cpu->thread);
+#endif
+#if 0
+        qemu_mutex_lock(&qemu_global_mutex);
+        CPU_FOREACH(cpu) {
+            cpu->thread_id = qemu_get_thread_id();
+            cpu->created = true;
+        }
+        qemu_cond_signal(&qemu_cpu_cond);
+#endif
+#if 0
+        /* wait for initial kick-off after machine start */
+        while (QTAILQ_FIRST(&cpus)->stopped) {
+            //qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
+
+            /* process any pending work */
+            CPU_FOREACH(cpu) {
+                qemu_wait_io_event_common(cpu);
+            }
+        }
+#endif
+        while (1) {
+            tcg_exec_all();
+
+            if (use_icount) {
+                int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
+
+                if (deadline == 0) {
+                    qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
+                    qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
+                    //qemu_clock_run_all_timers();
+                }
+            }
+            qemu_tcg_wait_io_event();
+        }
 }
 
 void ppc_cpu_run_single(int count)
