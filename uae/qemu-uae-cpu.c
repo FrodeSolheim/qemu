@@ -43,6 +43,11 @@
 #include "qemu/module.h"
 #include "sysemu/cpus.h"
 
+void runstate_init(void);
+void tcg_exec_all(void);
+void qemu_tcg_wait_io_event(void);
+void qemu_wait_io_event_common(CPUState *cpu);
+
 #include "uae/log.h"
 #include "uae/ppc.h"
 
@@ -181,20 +186,41 @@ bool ppc_cpu_init(uint32_t pvr)
     return true;
 }
 
-void ppc_cpu_map_memory(uint32_t addr, uint32_t size, void *memory,
-                        const char *name)
+void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
 {
-    uae_log("ppc_cpu_map_memory %08x [size %x] => %p\n",
-            addr, size, memory);
-    MemoryRegion* mem = g_new(MemoryRegion, 1);
-    if (memory != NULL) {
-        memory_region_init_ram_ptr(mem, NULL, name, size, memory);
+    /*
+     * TODO:
+     * Support aliased memory regions
+     */
+    MemoryRegion* mem;
+    int i;
+    //int32_t last;
+    for (i = 0; i < count; i++) {
+        PPCMemoryRegion *r = regions + i;
+        uae_log("ppc_cpu_map_memory %08x [size %x] => %p %s\n",
+                r->start, r->size, r->memory, r->name);
+#if 0
+        int32_t diff = last - r->start;
+        if (diff > 0) {
+            mem = g_new(MemoryRegion, 1);
+            memory_region_init_io(
+                        mem, NULL, &indirect_ops,
+                        (void *) (uintptr_t) last, "<Nothing>", diff);
+            memory_region_add_subregion(get_system_memory(), last, mem);
+        }
+#endif
+        if (r->memory) {
+            mem = g_new(MemoryRegion, 1);
+            memory_region_init_ram_ptr(mem, NULL, r->name, r->size, r->memory);
+        } else {
+            mem = g_new(MemoryRegion, 1);
+            memory_region_init_io(
+                        mem, NULL, &indirect_ops,
+                        (void *) (uintptr_t) r->start, r->name, r->size);
+        }
+        memory_region_add_subregion(get_system_memory(), r->start, mem);
+        //last = r->start + r->size;
     }
-    else {
-        memory_region_init_io(mem, NULL, &indirect_ops,
-                              (void *) (uintptr_t) addr, name, size);
-    }
-    memory_region_add_subregion(get_system_memory(), addr, mem);
 }
 
 void ppc_cpu_free(void)
@@ -226,11 +252,6 @@ void ppc_cpu_set_pc(int cpu, uint32_t value)
     // set instruction pointer (hack? better way?)
     state.env->nip = value;
 }
-
-void runstate_init(void);
-void tcg_exec_all(void);
-void qemu_tcg_wait_io_event(void);
-void qemu_wait_io_event_common(CPUState *cpu);
 
 void ppc_cpu_run_continuous(void)
 {
