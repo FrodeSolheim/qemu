@@ -49,13 +49,13 @@ void qemu_log_mask(int mask, const char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-#ifdef QEMU_UAE
-    UAE_LOG_VA_ARGS(fmt, ap);
-#else
     if ((qemu_loglevel & mask) && qemu_logfile) {
+#ifdef QEMU_UAE
+        UAE_LOG_VA_ARGS(fmt, ap);
+#else
         vfprintf(qemu_logfile, fmt, ap);
-    }
 #endif
+    }
     va_end(ap);
 }
 

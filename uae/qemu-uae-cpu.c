@@ -162,6 +162,7 @@ static bool initialize(uint32_t pvr)
     hreg_store_msr(state.env, 1 << MSR_EP, 0);
 
     configure_icount("auto");
+    //configure_icount("0");
 
     runstate_init();
 
@@ -195,10 +196,12 @@ void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
     MemoryRegion* mem;
     int i;
     //int32_t last;
+    uae_log("ppc_cpu_map_memory:\n");
     for (i = 0; i < count; i++) {
         PPCMemoryRegion *r = regions + i;
-        uae_log("ppc_cpu_map_memory %08x [size %x] => %p %s\n",
+        uae_log("%08x [+%8x]  =>  %p  \"%s\")\n",
                 r->start, r->size, r->memory, r->name);
+        //uae_log("    %s\n", r->name);
 #if 0
         int32_t diff = last - r->start;
         if (diff > 0) {
@@ -236,13 +239,13 @@ void ppc_cpu_stop(void)
 
 void ppc_cpu_atomic_raise_ext_exception(void)
 {
-    uae_log("ppc_cpu_atomic_raise_ext_exception\n");
+    // uae_log("ppc_cpu_atomic_raise_ext_exception\n");
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 1);
 }
 
 void ppc_cpu_atomic_cancel_ext_exception(void)
 {
-    uae_log("ppc_cpu_atomic_cancel_ext_exception\n");
+    // uae_log("ppc_cpu_atomic_cancel_ext_exception\n");
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 0);
 }
 

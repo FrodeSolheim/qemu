@@ -545,7 +545,8 @@ static inline void *alloc_code_gen_buffer(void)
 {
     void *buf = static_code_gen_buffer;
 #ifdef QEMU_UAE
-    uae_log("alloc_code_gen_buffer (static) %p\n", buf);
+    uae_log("alloc_code_gen_buffer (static) %p size %lu\n",
+            buf, tcg_ctx.code_gen_buffer_size);
 #endif
 #ifdef __mips__
     if (cross_256mb(buf, tcg_ctx.code_gen_buffer_size)) {
@@ -596,7 +597,8 @@ static inline void *alloc_code_gen_buffer(void)
     buf = mmap((void *)start, tcg_ctx.code_gen_buffer_size,
                PROT_WRITE | PROT_READ | PROT_EXEC, flags, -1, 0);
 #ifdef QEMU_UAE
-    uae_log("alloc_code_gen_buffer (mmap) %p\n", buf);
+    uae_log("alloc_code_gen_buffer (mmap) %p size %lu\n",
+            buf, tcg_ctx.code_gen_buffer_size);
 #endif
     if (buf == MAP_FAILED) {
         return NULL;
