@@ -2905,8 +2905,8 @@ out:
 }
 
 #ifdef QEMU_UAE
-int xxx_main(int argc, char **argv, char **envp);
-int xxx_main(int argc, char **argv, char **envp)
+int qemu_main(int argc, char **argv, char **envp);
+int qemu_main(int argc, char **argv, char **envp)
 #else
 int main(int argc, char **argv, char **envp)
 #endif
