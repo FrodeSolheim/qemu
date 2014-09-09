@@ -119,6 +119,8 @@ int main(int argc, char **argv)
 #include "qom/object_interfaces.h"
 #include "qapi-event.h"
 
+#include "uae/qemu-uae.h"
+
 #define DEFAULT_RAM_SIZE 128
 
 #define MAX_VIRTIO_CONSOLES 1
@@ -1950,7 +1952,7 @@ void qemu_system_debug_request(void)
     qemu_notify_event();
 }
 
-static bool main_loop_should_exit(void)
+bool main_loop_should_exit(void)
 {
     RunState r;
     if (qemu_debug_requested()) {
@@ -1995,7 +1997,7 @@ static bool main_loop_should_exit(void)
     return false;
 }
 
-static void main_loop(void)
+void main_loop(void)
 {
     bool nonblocking;
     int last_io = 0;

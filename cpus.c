@@ -63,6 +63,9 @@
 
 #endif /* CONFIG_LINUX */
 
+#include "uae/log.h"
+#include "uae/qemu-uae.h"
+
 static CPUState *next_cpu;
 
 bool cpu_is_stopped(CPUState *cpu)
@@ -276,12 +279,14 @@ static void icount_adjust(void)
         && icount_time_shift > 0) {
         /* The guest is getting too far ahead.  Slow time down.  */
         icount_time_shift--;
+        uae_log("PPC: icount_time_shift = %d\n", icount_time_shift);
     }
     if (delta < 0
         && last_delta - ICOUNT_WOBBLE > delta * 2
         && icount_time_shift < MAX_ICOUNT_SHIFT) {
         /* The guest is getting too far behind.  Speed time up.  */
         icount_time_shift++;
+        uae_log("PPC: icount_time_shift = %d\n", icount_time_shift);
     }
     last_delta = delta;
     qemu_icount_bias = cur_icount - (qemu_icount << icount_time_shift);
@@ -1134,6 +1139,7 @@ static void qemu_tcg_init_vcpu(CPUState *cpu)
         tcg_halt_cond = cpu->halt_cond;
         snprintf(thread_name, VCPU_THREAD_NAME_SIZE, "CPU %d/TCG",
                  cpu->cpu_index);
+        uae_log("PPC: Creating thread %s\n", thread_name);
         qemu_thread_create(cpu->thread, thread_name, qemu_tcg_cpu_thread_fn,
                            cpu, QEMU_THREAD_JOINABLE);
 #ifdef _WIN32

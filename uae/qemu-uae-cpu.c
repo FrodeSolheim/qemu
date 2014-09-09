@@ -43,13 +43,9 @@
 #include "qemu/module.h"
 #include "sysemu/cpus.h"
 
-void runstate_init(void);
-void tcg_exec_all(void);
-void qemu_tcg_wait_io_event(void);
-void qemu_wait_io_event_common(CPUState *cpu);
-
 #include "uae/log.h"
 #include "uae/ppc.h"
+#include "qemu-uae.h"
 
 #ifdef UAE
 #error UAE should not be defined here
@@ -112,7 +108,32 @@ static const MemoryRegionOps indirect_ops = {
     },
 };
 
-static bool initialize(uint32_t pvr)
+static void qemu_uae_machine_reset(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+    cpu_reset(CPU(cpu));
+}
+
+static void configure_accelerator(void)
+{
+    /* Allocate translation buffer (what is a suitable size?) */
+    tcg_exec_init(1024 * 1024);
+}
+
+static bool qemu_uae_machine_init(const char *model)
+{
+    uae_log("PPC: Initializing CPU model %s\n", model);
+    state.cpu = cpu_ppc_init(model);
+    state.env = &state.cpu->env;
+
+    /* needed to initialize the translation engine */
+    cpu_ppc_tb_init(state.env, TBFREQ);
+
+    qemu_register_reset(qemu_uae_machine_reset, state.cpu);
+    return true;
+}
+
+static bool initialize(const char *model)
 {
     static bool initialized = false;
     if (initialized) {
@@ -120,71 +141,91 @@ static bool initialize(uint32_t pvr)
     }
     initialized = true;
 
-    // needed to initialize the class system (and probably other stuff)
-    uae_log("MODULE_INIT_QOM\n");
+    /* Initialize the class system (and probably other stuff) */
+    uae_log("PPC: MODULE_INIT_QOM\n");
     module_call_init(MODULE_INIT_QOM);
 
-    // needed to initialize timer lists
-    init_clocks();
+    /* Initialize runstate transition structures */
+    runstate_init();
 
+#if 1
+    /* qemu_init_main_loop -> qemu_signal_init installs signals */
+    /* FIXME: could conflict with UAE */
+    if (qemu_init_main_loop()) {
+        fprintf(stderr, "qemu_init_main_loop failed\n");
+        exit(1);
+    }
+#else
+    /* Initialize clocks / timer lists */
+    init_clocks();
+#endif
+
+    /* Initialize memory map structures, etc */
+    cpu_exec_init_all();
+
+    /* Calls tcg_exec_init */
+    configure_accelerator();
+
+    /* Initialize conditions and mutex needed by CPU emulation */
     qemu_init_cpu_loop();
+
+    /* Lock qemu_global_mutex */
     qemu_mutex_lock_iothread();
 
-    // allocate translation buffer (what is a suitable size?)
-    tcg_exec_init(1024 * 1024);
+    /* Configure timing based on instruction counter */
+    //configure_icount("auto");
+    //configure_icount("10");
+    configure_icount(NULL);
 
-    const char *cpu_model = NULL;
-    if (pvr == CPU_POWERPC_604E_v24) {
-        cpu_model = "604e_v2.4";
-    }
-    else if (pvr == CPU_POWERPC_603E7v1) {
-        cpu_model = "603e7v1";
-    }
-    else {
-        uae_log("Unknown CPU PVR, initialization failed\n");
+    /*  */
+    // qemu_add_globals();
+    qemu_thread_naming(true);
+
+    /* Create CPU */
+    if (!qemu_uae_machine_init(model)) {
         return false;
     }
 
-    uae_log("Initializing PPC CPU model %s (0x%08x)\n", cpu_model, pvr);
-    state.cpu = cpu_ppc_init(cpu_model);
-    state.env = &state.cpu->env;
+    /* Doesn't really do anything except in KVM mode */
+    cpu_synchronize_all_post_init();
 
-    // needed to initialize system_memory variable
-    uae_log("cpu_exec_init_all\n");
-    cpu_exec_init_all();
+    /* Probably not needed */
+    set_numa_modes();
 
-    // needed to initialize the translation engine
-    cpu_ppc_tb_init(state.env, TBFREQ);
-
-    // perhaps needed
-    ppc_translate_init();
-
+    /* Exception vector base at 0xfff00000, instead of 0x00000000 */
     hreg_store_msr(state.env, 1 << MSR_EP, 0);
 
-    configure_icount("auto");
-    //configure_icount("0");
-
-    runstate_init();
-
-    cpu_enable_ticks();
+    /* Log CPU model identifier */
+    uae_log("PPC: CPU PVR 0x%08x\n", state.env->spr[SPR_PVR]);
 
     return true;
 }
 
 bool ppc_cpu_init(uint32_t pvr)
 {
-    uae_log("ppc_cpu_init pvr=0x%08x\n", pvr);
-    if (!initialize(pvr)) {
+    uae_log("PPC: ppc_cpu_init pvr=0x%08x\n", pvr);
+    const char *model = NULL;
+    if (pvr == CPU_POWERPC_604E_v24) {
+        model = "604e_v2.4";
+    } else if (pvr == CPU_POWERPC_603E7v1) {
+        model = "603e7v1";
+    } else {
+        uae_log("PPC: Unknown CPU PVR, initialization failed\n");
         return false;
     }
+    return initialize(model);
+}
 
-    if (state.env->spr[SPR_PVR] != pvr) {
-        uae_log("PVR (0x%08x) does not match requested PVR (0x%08x)\n",
-                state.env->spr[SPR_PVR], pvr);;
-        return false;
+bool ppc_cpu_init_with_model(const char* model)
+{
+    const char *qemu_model = model;
+    if (strcasecmp(model, "603ev") == 0) {
+        qemu_model = "603e7v1";
+    } else if (strcasecmp(model, "604e") == 0) {
+        qemu_model = "604e_v2.4";
     }
-
-    return true;
+    uae_log("PPC: ppc_cpu_init_with_model %s => %s\n", model, qemu_model);
+    return initialize(qemu_model);
 }
 
 void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
@@ -195,23 +236,11 @@ void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
      */
     MemoryRegion* mem;
     int i;
-    //int32_t last;
-    uae_log("ppc_cpu_map_memory:\n");
+    uae_log("PPC: Map memory regions:\n");
     for (i = 0; i < count; i++) {
         PPCMemoryRegion *r = regions + i;
-        uae_log("%08x [+%8x]  =>  %p  \"%s\")\n",
+        uae_log("PPC: %08x [+%8x]  =>  %p  \"%s\")\n",
                 r->start, r->size, r->memory, r->name);
-        //uae_log("    %s\n", r->name);
-#if 0
-        int32_t diff = last - r->start;
-        if (diff > 0) {
-            mem = g_new(MemoryRegion, 1);
-            memory_region_init_io(
-                        mem, NULL, &indirect_ops,
-                        (void *) (uintptr_t) last, "<Nothing>", diff);
-            memory_region_add_subregion(get_system_memory(), last, mem);
-        }
-#endif
         if (r->memory) {
             mem = g_new(MemoryRegion, 1);
             memory_region_init_ram_ptr(mem, NULL, r->name, r->size, r->memory);
@@ -222,44 +251,66 @@ void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
                         (void *) (uintptr_t) r->start, r->name, r->size);
         }
         memory_region_add_subregion(get_system_memory(), r->start, mem);
-        //last = r->start + r->size;
     }
 }
 
 void ppc_cpu_free(void)
 {
-    uae_log("ppc_cpu_free\n");
+    uae_log("PPC: ppc_cpu_free (STUB)\n");
 }
 
 void ppc_cpu_stop(void)
 {
-    uae_log("ppc_cpu_stop\n");
+    uae_log("PPC: ppc_cpu_stop\n");
     cpu_exit(ENV_GET_CPU(state.env));
 }
 
 void ppc_cpu_atomic_raise_ext_exception(void)
 {
-    // uae_log("ppc_cpu_atomic_raise_ext_exception\n");
+    // uae_log("PPC: ppc_cpu_atomic_raise_ext_exception\n");
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 1);
 }
 
 void ppc_cpu_atomic_cancel_ext_exception(void)
 {
-    // uae_log("ppc_cpu_atomic_cancel_ext_exception\n");
+    // uae_log("PPC: ppc_cpu_atomic_cancel_ext_exception\n");
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 0);
 }
 
 void ppc_cpu_set_pc(int cpu, uint32_t value)
 {
-    uae_log("ppc_cpu_set_pc %x (cpu=%d)\n", value, cpu);
+    uae_log("PPC: ppc_cpu_set_pc %x (cpu=%d)\n", value, cpu);
     // set instruction pointer (hack? better way?)
     state.env->nip = value;
 }
 
+#if 0
+static void main_loop(void)
+{
+    bool nonblocking;
+    int last_io = 0;
+#ifdef CONFIG_PROFILER
+    int64_t ti;
+#endif
+    do {
+        //nonblocking = !kvm_enabled() && !xen_enabled() && last_io > 0;
+        nonblocking = last_io > 0;
+#ifdef CONFIG_PROFILER
+        ti = profile_getclock();
+#endif
+        last_io = main_loop_wait(nonblocking);
+#ifdef CONFIG_PROFILER
+        dev_time += profile_getclock() - ti;
+#endif
+    } while (!main_loop_should_exit());
+}
+#endif
+
 void ppc_cpu_run_continuous(void)
 {
-    uae_log("ppc_cpu_run_continuous\n");
+    uae_log("PPC: ppc_cpu_run_continuous\n");
 
+    cpu_enable_ticks();
     runstate_set(RUN_STATE_RUNNING);
     vm_state_notify(1, RUN_STATE_RUNNING);
     resume_all_vcpus();
@@ -291,7 +342,11 @@ void ppc_cpu_run_continuous(void)
         }
     }
 #endif
-    while (1) {
+    main_loop();
+    //while (1) {
+    //    g_usleep(1000000);
+    //    resume_all_vcpus();
+#if 0
         tcg_exec_all();
 
         if (use_icount) {
@@ -310,12 +365,13 @@ void ppc_cpu_run_continuous(void)
         }
 
         qemu_tcg_wait_io_event();
-    }
+#endif
+    //}
 }
 
 void ppc_cpu_run_single(int count)
 {
-    uae_log("ppc_cpu_run_single count=%d\n", count);
+    uae_log("PPC: ppc_cpu_run_single count=%d (STUB)\n", count);
 }
 
 uint64_t ppc_cpu_get_dec(void)
@@ -325,30 +381,36 @@ uint64_t ppc_cpu_get_dec(void)
 
 void ppc_cpu_do_dec(int value)
 {
-    uae_log("ppc_cpu_do_dec %d\n", value);
+    uae_log("PPC: ppc_cpu_do_dec %d\n", value);
     cpu_ppc_store_decr(state.env, value);
 }
 
 void ppc_cpu_pause(int pause)
 {
-    uae_log("ppc_cpu_pause %d\n", pause);
+    uae_log("PPC: ppc_cpu_pause %d\n", pause);
+#if 1
+    qemu_mutex_lock_iothread();
+    if (pause) {
+        pause_all_vcpus();
+        uae_log("PPC: paused!\n");
+    } else {
+        resume_all_vcpus();
+        uae_log("PPC: resumed!\n");
+    }
+    qemu_mutex_unlock_iothread();
+#else
     state.pause = pause;
     if (pause) {
         // FIXME: can raise an interrupt/exception here to make the CPU
         // execution end sooner
     }
+#endif
 }
+
+/* Storage for callback functions set by UAE */
 
 uae_log_function uae_log = NULL;
 uae_ppc_io_mem_read_function uae_ppc_io_mem_read = NULL;
 uae_ppc_io_mem_write_function uae_ppc_io_mem_write = NULL;
 uae_ppc_io_mem_read64_function uae_ppc_io_mem_read64 = NULL;
 uae_ppc_io_mem_write64_function uae_ppc_io_mem_write64 = NULL;
-
-/*
- * Just used to debug that the library initialization is run.
- */
-static void __attribute__((constructor)) qemu_uae_cpu_init(void)
-{
-    printf(" ----------- qemu_uae_cpu_init ----------- \n");
-}
