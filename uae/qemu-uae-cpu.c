@@ -51,18 +51,28 @@
 #error UAE should not be defined here
 #endif
 
-//PPCAPI uae_ppc_io_mem_read_function g_uae_ppc_io_mem_read;
-//PPCAPI uae_ppc_io_mem_write_function g_uae_ppc_io_mem_write;
-//PPCAPI uae_ppc_io_mem_read64_function g_uae_ppc_io_mem_read64;
-//PPCAPI uae_ppc_io_mem_write64_function g_uae_ppc_io_mem_write64;
+/* Increase this when changes are not backwards compatible */
+#define QEMU_UAE_VERSION_MAJOR 1
+
+/* Increase this when important changes are made */
+#define QEMU_UAE_VERSION_MINOR 2
+
+/* Just increase this when the update is insignificant */
+#define QEMU_UAE_VERSION_REVISION 3
 
 #define BUSFREQ 66000000UL
 #define TBFREQ 16600000UL
+#define MAX_MEMORY_REGIONS 128
 
 static struct {
-    volatile int pause;
     CPUPPCState *env;
     PowerPCCPU *cpu;
+    bool started;
+    bool exit_main_loop;
+    bool main_loop_exited;
+    int cpu_state;
+    QemuThread pause_thread;
+
 } state;
 
 static uint64_t indirect_read(void *opaque, hwaddr addr, unsigned size)
@@ -108,6 +118,13 @@ static const MemoryRegionOps indirect_ops = {
     },
 };
 
+void ppc_cpu_version(int *major, int *minor, int *revision)
+{
+    *major = QEMU_UAE_VERSION_MAJOR;
+    *minor = QEMU_UAE_VERSION_MINOR;
+    *revision = QEMU_UAE_VERSION_REVISION;
+}
+
 static void qemu_uae_machine_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
@@ -122,7 +139,7 @@ static void configure_accelerator(void)
 
 static bool qemu_uae_machine_init(const char *model)
 {
-    uae_log("PPC: Initializing CPU model %s\n", model);
+    uae_log("QEMU: Initializing PPC CPU model %s\n", model);
     state.cpu = cpu_ppc_init(model);
     state.env = &state.cpu->env;
 
@@ -139,10 +156,14 @@ static bool initialize(const char *model)
     if (initialized) {
         return false;
     }
+    int major, minor, revision;
+    ppc_cpu_version(&major, &minor, &revision);
+    uae_log("QEMU: Initialize PPC CPU (QEMU %s + API %d.%d.%d)\n",
+            qemu_get_version(), major, minor, revision);
     initialized = true;
 
     /* Initialize the class system (and probably other stuff) */
-    uae_log("PPC: MODULE_INIT_QOM\n");
+    uae_log("QEMU: MODULE_INIT_QOM\n");
     module_call_init(MODULE_INIT_QOM);
 
     /* Initialize runstate transition structures */
@@ -172,9 +193,7 @@ static bool initialize(const char *model)
     /* Lock qemu_global_mutex */
     qemu_mutex_lock_iothread();
 
-    /* Configure timing based on instruction counter */
-    //configure_icount("auto");
-    //configure_icount("10");
+    /* Configure timing method (using clock-based timing) */
     configure_icount(NULL);
 
     /*  */
@@ -196,27 +215,30 @@ static bool initialize(const char *model)
     hreg_store_msr(state.env, 1 << MSR_EP, 0);
 
     /* Log CPU model identifier */
-    uae_log("PPC: CPU PVR 0x%08x\n", state.env->spr[SPR_PVR]);
+    uae_log("QEMU: CPU PVR 0x%08x\n", state.env->spr[SPR_PVR]);
 
+    qemu_mutex_unlock_iothread();
     return true;
 }
 
+# if 0
 bool ppc_cpu_init(uint32_t pvr)
 {
-    uae_log("PPC: ppc_cpu_init pvr=0x%08x\n", pvr);
+    uae_log("QEMU: ppc_cpu_init pvr=0x%08x\n", pvr);
     const char *model = NULL;
     if (pvr == CPU_POWERPC_604E_v24) {
         model = "604e_v2.4";
     } else if (pvr == CPU_POWERPC_603E7v1) {
         model = "603e7v1";
     } else {
-        uae_log("PPC: Unknown CPU PVR, initialization failed\n");
+        uae_log("QEMU: Unknown CPU PVR, initialization failed\n");
         return false;
     }
     return initialize(model);
 }
+#endif
 
-bool ppc_cpu_init_with_model(const char* model)
+bool ppc_cpu_init(const char* model)
 {
     const char *qemu_model = model;
     if (strcasecmp(model, "603ev") == 0) {
@@ -224,22 +246,40 @@ bool ppc_cpu_init_with_model(const char* model)
     } else if (strcasecmp(model, "604e") == 0) {
         qemu_model = "604e_v2.4";
     }
-    uae_log("PPC: ppc_cpu_init_with_model %s => %s\n", model, qemu_model);
+    uae_log("QEMU: ppc_cpu_init_with_model %s => %s\n", model, qemu_model);
     return initialize(qemu_model);
 }
 
 void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
 {
+    static MemoryRegion *added_regions[MAX_MEMORY_REGIONS + 1];
+    int i;
+
+    uae_log("QEMU: Map memory regions:\n");
+    if (count >= MAX_MEMORY_REGIONS) {
+        uae_log("QEMU: Too many memory regions!\n");
+        return;
+    }
+
+    /* Remove all existing memory regions */
+    for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
+        MemoryRegion *mem = added_regions[i];
+        if (mem == NULL) {
+            break;
+        }
+        memory_region_del_subregion(get_system_memory(), mem);
+        memory_region_destroy(mem);
+    }
+
+    /* Create new memory subregions */
     /*
      * TODO:
      * Support aliased memory regions
      */
-    MemoryRegion* mem;
-    int i;
-    uae_log("PPC: Map memory regions:\n");
     for (i = 0; i < count; i++) {
+        MemoryRegion *mem;
         PPCMemoryRegion *r = regions + i;
-        uae_log("PPC: %08x [+%8x]  =>  %p  \"%s\")\n",
+        uae_log("QEMU: %08x [+%8x]  =>  %p  \"%s\")\n",
                 r->start, r->size, r->memory, r->name);
         if (r->memory) {
             mem = g_new(MemoryRegion, 1);
@@ -251,160 +291,117 @@ void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
                         (void *) (uintptr_t) r->start, r->name, r->size);
         }
         memory_region_add_subregion(get_system_memory(), r->start, mem);
+        added_regions[i] = mem;
     }
+    added_regions[count] = NULL;
 }
 
+#if 0
 void ppc_cpu_free(void)
 {
-    uae_log("PPC: ppc_cpu_free (STUB)\n");
+    uae_log("QEMU: ppc_cpu_free (STUB)\n");
 }
-
-void ppc_cpu_stop(void)
-{
-    uae_log("PPC: ppc_cpu_stop\n");
-    cpu_exit(ENV_GET_CPU(state.env));
-}
+#endif
 
 void ppc_cpu_atomic_raise_ext_exception(void)
 {
-    // uae_log("PPC: ppc_cpu_atomic_raise_ext_exception\n");
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 1);
 }
 
 void ppc_cpu_atomic_cancel_ext_exception(void)
 {
-    // uae_log("PPC: ppc_cpu_atomic_cancel_ext_exception\n");
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 0);
 }
 
+#if 0
 void ppc_cpu_set_pc(int cpu, uint32_t value)
 {
-    uae_log("PPC: ppc_cpu_set_pc %x (cpu=%d)\n", value, cpu);
+    uae_log("QEMU: Set CPU%d program counter to 0x%08x \n", cpu, value);
     // set instruction pointer (hack? better way?)
     state.env->nip = value;
 }
+#endif
 
-#if 0
-static void main_loop(void)
+bool qemu_uae_main_loop_should_exit(void)
 {
-    bool nonblocking;
-    int last_io = 0;
-#ifdef CONFIG_PROFILER
-    int64_t ti;
-#endif
-    do {
-        //nonblocking = !kvm_enabled() && !xen_enabled() && last_io > 0;
-        nonblocking = last_io > 0;
-#ifdef CONFIG_PROFILER
-        ti = profile_getclock();
-#endif
-        last_io = main_loop_wait(nonblocking);
-#ifdef CONFIG_PROFILER
-        dev_time += profile_getclock() - ti;
-#endif
-    } while (!main_loop_should_exit());
+    return state.exit_main_loop;
 }
-#endif
 
 void ppc_cpu_run_continuous(void)
 {
-    uae_log("PPC: ppc_cpu_run_continuous\n");
+    uae_log("QEMU: Running main loop\n");
+    qemu_mutex_lock_iothread();
 
     cpu_enable_ticks();
     runstate_set(RUN_STATE_RUNNING);
     vm_state_notify(1, RUN_STATE_RUNNING);
     resume_all_vcpus();
 
-    //cpu_exec(state.env);
-#if 0
-    //CPUState *cpu = arg;
-    CPUState *cpu = ENV_GET_CPU(state.env);
+    state.started = true;
 
-    //qemu_tcg_init_cpu_signals();
-    qemu_thread_get_self(cpu->thread);
-#endif
-#if 0
-    qemu_mutex_lock(&qemu_global_mutex);
-    CPU_FOREACH(cpu) {
-        cpu->thread_id = qemu_get_thread_id();
-        cpu->created = true;
-    }
-    qemu_cond_signal(&qemu_cpu_cond);
-#endif
-#if 0
-    /* wait for initial kick-off after machine start */
-    while (QTAILQ_FIRST(&cpus)->stopped) {
-        //qemu_cond_wait(tcg_halt_cond, &qemu_global_mutex);
-
-        /* process any pending work */
-        CPU_FOREACH(cpu) {
-            qemu_wait_io_event_common(cpu);
-        }
-    }
-#endif
+    /* The main loop iteration unlocks and relocks the iothread lock */
     main_loop();
-    //while (1) {
-    //    g_usleep(1000000);
-    //    resume_all_vcpus();
+}
+
 #if 0
-        tcg_exec_all();
-
-        if (use_icount) {
-            int64_t deadline = qemu_clock_deadline_ns_all(QEMU_CLOCK_VIRTUAL);
-
-            if (deadline == 0) {
-                qemu_clock_notify(QEMU_CLOCK_VIRTUAL);
-                qemu_clock_run_timers(QEMU_CLOCK_VIRTUAL);
-                //qemu_clock_run_all_timers();
-            }
-        }
-
-        while (state.pause) {
-            /* very basic pause function, just sleeping 1ms in a loop */
-            g_usleep(1000);
-        }
-
-        qemu_tcg_wait_io_event();
+void ppc_cpu_stop(void)
+{
+    uae_log("QEMU: Stopping CPU\n");
+    ppc_cpu_pause(true);
+}
 #endif
-    //}
+
+void PPCCALL ppc_cpu_reset(void)
+{
+    uae_log("QEMU: Reset CPU\n");
+    cpu_reset(ENV_GET_CPU(state.env));
+    uae_log("QEMU: NIP = 0x%08x\n", state.env->nip);
 }
 
-void ppc_cpu_run_single(int count)
+bool PPCCALL ppc_cpu_check_state(int check_state)
 {
-    uae_log("PPC: ppc_cpu_run_single count=%d (STUB)\n", count);
-}
-
-uint64_t ppc_cpu_get_dec(void)
-{
-    return cpu_ppc_load_decr(state.env);
-}
-
-void ppc_cpu_do_dec(int value)
-{
-    uae_log("PPC: ppc_cpu_do_dec %d\n", value);
-    cpu_ppc_store_decr(state.env, value);
-}
-
-void ppc_cpu_pause(int pause)
-{
-    uae_log("PPC: ppc_cpu_pause %d\n", pause);
-#if 1
     qemu_mutex_lock_iothread();
-    if (pause) {
-        pause_all_vcpus();
-        uae_log("PPC: paused!\n");
-    } else {
-        resume_all_vcpus();
-        uae_log("PPC: resumed!\n");
-    }
-    qemu_mutex_unlock_iothread();
-#else
-    state.pause = pause;
-    if (pause) {
-        // FIXME: can raise an interrupt/exception here to make the CPU
-        // execution end sooner
-    }
+    bool result = state.cpu_state == check_state;
+#if 0
+    uae_log("%d vs %d\n", state.cpu_state, check_state);
 #endif
+    qemu_mutex_unlock_iothread();
+    return result;
+}
+
+static void *pause_thread(void *arg)
+{
+    qemu_mutex_lock_iothread();
+
+    /* We cannot safely pause before the emulation has properly started */
+    while (!state.started) {
+        qemu_mutex_unlock_iothread();
+        g_usleep(10 * 1000);
+        qemu_mutex_lock_iothread();
+    }
+
+    pause_all_vcpus();
+    uae_log("QEMU: Paused!\n");
+    state.cpu_state = PPC_CPU_STATE_PAUSED;
+
+    qemu_mutex_unlock_iothread();
+    return NULL;
+}
+
+void PPCCALL ppc_cpu_set_state(int set_state)
+{
+    if (set_state == PPC_CPU_STATE_PAUSED) {
+        uae_log("QEMU: Pausing...\n");
+        qemu_thread_create(&state.pause_thread, "QEMU pause", pause_thread,
+                           NULL, QEMU_THREAD_DETACHED);
+    } else if (set_state == PPC_CPU_STATE_RUNNING) {
+        uae_log("QEMU: Resuming...\n");
+        qemu_mutex_lock_iothread();
+        resume_all_vcpus();
+        state.cpu_state = PPC_CPU_STATE_RUNNING;
+        uae_log("QEMU: Resumed!\n");
+        qemu_mutex_unlock_iothread();
+    }
 }
 
 /* Storage for callback functions set by UAE */

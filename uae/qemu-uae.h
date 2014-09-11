@@ -10,4 +10,8 @@ void qemu_wait_io_event_common(CPUState *cpu);
 void main_loop(void);
 bool main_loop_should_exit(void);
 
+/* qemu-uae-cpu.c */
+
+bool qemu_uae_main_loop_should_exit(void);
+
 #endif /* QEMU_UAE_H */

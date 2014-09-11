@@ -2000,12 +2000,25 @@ bool main_loop_should_exit(void)
 void main_loop(void)
 {
     bool nonblocking;
+#ifdef QEMU_UAE
+    //int last_io = 1;
     int last_io = 0;
+#else
+    int last_io = 0;
+#endif
 #ifdef CONFIG_PROFILER
     int64_t ti;
 #endif
     do {
+#ifdef QEMU_UAE
+        if (qemu_uae_main_loop_should_exit()) {
+            break;
+        }
+#endif
         nonblocking = !kvm_enabled() && !xen_enabled() && last_io > 0;
+#ifdef QEMU_UAE
+        //nonblocking = 1;
+#endif
 #ifdef CONFIG_PROFILER
         ti = profile_getclock();
 #endif
