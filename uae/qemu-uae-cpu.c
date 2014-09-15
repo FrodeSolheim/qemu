@@ -429,6 +429,10 @@ void PPCCALL ppc_cpu_reset(void)
     cpu_reset(ENV_GET_CPU(state.env));
     state.env->spr[SPR_HID1] = state.hid1;
     uae_log("QEMU: NIP = 0x%08x\n", state.env->nip);
+
+    uae_log("QEMU: Flushing all JIT translation blocks\n");
+    tlb_flush(ENV_GET_CPU(state.env), 1);
+    tb_flush(state.env);
 }
 
 bool PPCCALL ppc_cpu_check_state(int check_state)
