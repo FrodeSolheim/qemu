@@ -83,8 +83,7 @@ static uint64_t indirect_read(void *opaque, hwaddr addr, unsigned size)
         uint64_t retval = 0;
         uae_ppc_io_mem_read64(addr, &retval);
         return retval;
-    }
-    else {
+    } else {
         uint32_t retval = 0;
         uae_ppc_io_mem_read(addr, &retval, size);
         return retval;
@@ -97,8 +96,7 @@ static void indirect_write(void *opaque, hwaddr addr, uint64_t data,
     addr += (uintptr_t) opaque;
     if (size == 8) {
         uae_ppc_io_mem_write64(addr, data);
-    }
-    else {
+    } else {
         uae_ppc_io_mem_write(addr, data, size);
     }
 }
@@ -170,17 +168,12 @@ static bool initialize(const char *model)
     /* Initialize runstate transition structures */
     runstate_init();
 
-#if 1
     /* qemu_init_main_loop -> qemu_signal_init installs signals */
     /* FIXME: could conflict with UAE */
     if (qemu_init_main_loop()) {
         fprintf(stderr, "qemu_init_main_loop failed\n");
         exit(1);
     }
-#else
-    /* Initialize clocks / timer lists */
-    init_clocks();
-#endif
 
     /* Initialize memory map structures, etc */
     cpu_exec_init_all();
@@ -222,23 +215,6 @@ static bool initialize(const char *model)
     return true;
 }
 
-# if 0
-bool ppc_cpu_init(uint32_t pvr)
-{
-    uae_log("QEMU: ppc_cpu_init pvr=0x%08x\n", pvr);
-    const char *model = NULL;
-    if (pvr == CPU_POWERPC_604E_v24) {
-        model = "604e_v2.4";
-    } else if (pvr == CPU_POWERPC_603E7v1) {
-        model = "603e7v1";
-    } else {
-        uae_log("QEMU: Unknown CPU PVR, initialization failed\n");
-        return false;
-    }
-    return initialize(model);
-}
-#endif
-
 bool ppc_cpu_init(const char* model, uint32_t hid1)
 {
     const char *qemu_model = model;
@@ -254,77 +230,84 @@ bool ppc_cpu_init(const char* model, uint32_t hid1)
 
 struct UAEregion
 {
-	struct MemoryRegion *region;
-	hwaddr addr;
-	unsigned int size;
+    struct MemoryRegion *region;
+    hwaddr addr;
+    unsigned int size;
 };
 
 static struct UAEregion added_regions[MAX_MEMORY_REGIONS + 1];
 
 static void ppc_cpu_map_add(PPCMemoryRegion *r)
 {
-	int i;
-	for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
-		MemoryRegion *mem;
-		struct UAEregion *region = &added_regions[i];
-		if (region->region != NULL)
-			continue;
-		uae_log("QEMU: %02d %08x [+%8x]  =>  %p  \"%s\")\n",
-			i, r->start, r->size, r->memory, r->name);
-		mem = g_new(MemoryRegion, 1);
-		if (r->memory) {
-			memory_region_init_ram_ptr(mem, NULL, r->name, r->size, r->memory);
-		} else {
-			memory_region_init_io(mem, NULL, &indirect_ops,
-				(void *) (uintptr_t) r->start, r->name, r->size);
-		}
-		memory_region_add_subregion(get_system_memory(), r->start, mem);
-		region->region = mem;
-		region->addr = r->start;
-		region->size = r->size;
-		return;
-	}
+    int i;
+    for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
+        MemoryRegion *mem;
+        struct UAEregion *region = &added_regions[i];
+        if (region->region != NULL)
+            continue;
+        uae_log("QEMU: %02d %08x [+%8x]  =>  %p  \"%s\")\n",
+                i, r->start, r->size, r->memory, r->name);
+        mem = g_new(MemoryRegion, 1);
+        if (r->memory) {
+            memory_region_init_ram_ptr(mem, NULL, r->name, r->size, r->memory);
+        } else {
+            memory_region_init_io(mem, NULL, &indirect_ops,
+                                  (void *) (uintptr_t) r->start, r->name,
+                                  r->size);
+        }
+        memory_region_add_subregion(get_system_memory(), r->start, mem);
+        region->region = mem;
+        region->addr = r->start;
+        region->size = r->size;
+        return;
+    }
 }
 
 static void ppc_cpu_map_memory_single(PPCMemoryRegion *r)
 {
-	int i;
-    uae_log("QEMU: Map single memory region %08x %08x '%s':\n", r->start, r->size, r->name);
+    int i;
+    uae_log("QEMU: Map single memory region %08x %08x '%s':\n", r->start,
+            r->size,
+            r->name);
 
-	if (r->alias == 0xffffffff) {
-		for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
-			struct UAEregion *mem = &added_regions[i];
-			if (mem->region == NULL)
-				continue;
-			if (mem->addr >= r->start && mem->addr < r->start + r->size) {
-				uae_log("QEMU: region %02d %08x %08x deleted\n", i, (uint32_t)mem->addr, mem->size);
-				memory_region_del_subregion(get_system_memory(), mem->region);
-		        memory_region_destroy(mem->region);
-				mem->region = NULL;
-			}
-		}
-		return;
-	}
+    if (r->alias == 0xffffffff) {
+        for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
+            struct UAEregion *mem = &added_regions[i];
+            if (mem->region == NULL)
+                continue;
+            if (mem->addr >= r->start && mem->addr < r->start + r->size) {
+                uae_log("QEMU: region %02d %08x %08x deleted\n", i,
+                        (uint32_t)mem->addr,
+                        mem->size);
+                memory_region_del_subregion(get_system_memory(), mem->region);
+                memory_region_destroy(mem->region);
+                mem->region = NULL;
+            }
+        }
+        return;
+    }
 
-	for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
-		struct UAEregion *mem = &added_regions[i];
-		if (mem->region == NULL)
-			continue;
-		if (mem->addr == r->start && mem->size == r->size) {
-			uae_log("QEMU: region %02d replaced\n", i);
-			memory_region_del_subregion(get_system_memory(), mem->region);
-			if (r->memory) {
-				memory_region_init_ram_ptr(mem->region, NULL, r->name, r->size, r->memory);
-			} else {
-				memory_region_init_io(
-					mem->region, NULL, &indirect_ops,
-					(void *) (uintptr_t) r->start, r->name, r->size);
-			}
-			memory_region_add_subregion(get_system_memory(), r->start, mem->region);
-			return;
-		}
-	}
-	ppc_cpu_map_add(r);
+    for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
+        struct UAEregion *mem = &added_regions[i];
+        if (mem->region == NULL)
+            continue;
+        if (mem->addr == r->start && mem->size == r->size) {
+            uae_log("QEMU: region %02d replaced\n", i);
+            memory_region_del_subregion(get_system_memory(), mem->region);
+            if (r->memory) {
+                memory_region_init_ram_ptr(mem->region, NULL, r->name, r->size,
+                                           r->memory);
+            } else {
+                memory_region_init_io(
+                    mem->region, NULL, &indirect_ops,
+                    (void *) (uintptr_t) r->start, r->name, r->size);
+            }
+            memory_region_add_subregion(
+                get_system_memory(), r->start, mem->region);
+            return;
+        }
+    }
+    ppc_cpu_map_add(r);
 }
 
 static void ppc_cpu_map_memory_multi(PPCMemoryRegion *regions, int count)
@@ -337,7 +320,7 @@ static void ppc_cpu_map_memory_multi(PPCMemoryRegion *regions, int count)
         return;
     }
 
-	qemu_mutex_lock_iothread();
+    qemu_mutex_lock_iothread();
 
     /* Remove all existing memory regions */
     for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
@@ -354,26 +337,19 @@ static void ppc_cpu_map_memory_multi(PPCMemoryRegion *regions, int count)
      * TODO:
      * Support aliased memory regions
      */
-	for (i = 0; i < count; i++)
-		ppc_cpu_map_add(&regions[i]);
+    for (i = 0; i < count; i++)
+        ppc_cpu_map_add(&regions[i]);
 
-	qemu_mutex_unlock_iothread();
+    qemu_mutex_unlock_iothread();
 }
 
 void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
 {
-	if (count >= 0)
-		ppc_cpu_map_memory_multi(regions, count);
-	else
-		ppc_cpu_map_memory_single(regions);
+    if (count >= 0)
+        ppc_cpu_map_memory_multi(regions, count);
+    else
+        ppc_cpu_map_memory_single(regions);
 }
-
-#if 0
-void ppc_cpu_free(void)
-{
-    uae_log("QEMU: ppc_cpu_free (STUB)\n");
-}
-#endif
 
 void ppc_cpu_atomic_raise_ext_exception(void)
 {
@@ -384,15 +360,6 @@ void ppc_cpu_atomic_cancel_ext_exception(void)
 {
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 0);
 }
-
-#if 0
-void ppc_cpu_set_pc(int cpu, uint32_t value)
-{
-    uae_log("QEMU: Set CPU%d program counter to 0x%08x \n", cpu, value);
-    // set instruction pointer (hack? better way?)
-    state.env->nip = value;
-}
-#endif
 
 bool qemu_uae_main_loop_should_exit(void)
 {
@@ -415,14 +382,6 @@ void ppc_cpu_run_continuous(void)
     main_loop();
 }
 
-#if 0
-void ppc_cpu_stop(void)
-{
-    uae_log("QEMU: Stopping CPU\n");
-    ppc_cpu_pause(true);
-}
-#endif
-
 void PPCCALL ppc_cpu_reset(void)
 {
     uae_log("QEMU: Reset CPU\n");
@@ -431,7 +390,10 @@ void PPCCALL ppc_cpu_reset(void)
     uae_log("QEMU: NIP = 0x%08x\n", state.env->nip);
 
     uae_log("QEMU: Flushing all JIT translation blocks\n");
+    /* cpu_reset calls tlb_flush but not tb_flush */
+#if 0
     tlb_flush(ENV_GET_CPU(state.env), 1);
+#endif
     tb_flush(state.env);
 }
 
