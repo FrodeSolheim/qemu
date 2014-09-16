@@ -52,13 +52,13 @@
 #endif
 
 /* Increase this when changes are not backwards compatible */
-#define QEMU_UAE_VERSION_MAJOR 1
+#define QEMU_UAE_VERSION_MAJOR 2
 
 /* Increase this when important changes are made */
-#define QEMU_UAE_VERSION_MINOR 2
+#define QEMU_UAE_VERSION_MINOR 0
 
 /* Just increase this when the update is insignificant */
-#define QEMU_UAE_VERSION_REVISION 3
+#define QEMU_UAE_VERSION_REVISION 0
 
 #define BUSFREQ 66000000UL
 #define TBFREQ 16600000UL
@@ -420,7 +420,7 @@ static void *pause_thread(void *arg)
     }
 
     pause_all_vcpus();
-    uae_log("QEMU: Paused!\n");
+    uae_log("QEMU: Paused! NIP = 0x%08x\n", state.env->nip);
     state.cpu_state = PPC_CPU_STATE_PAUSED;
 
     qemu_mutex_unlock_iothread();
