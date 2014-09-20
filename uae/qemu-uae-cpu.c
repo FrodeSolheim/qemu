@@ -58,7 +58,7 @@
 #define QEMU_UAE_VERSION_MINOR 0
 
 /* Just increase this when the update is insignificant */
-#define QEMU_UAE_VERSION_REVISION 0
+#define QEMU_UAE_VERSION_REVISION 1
 
 #define BUSFREQ 66000000UL
 #define TBFREQ 16600000UL
