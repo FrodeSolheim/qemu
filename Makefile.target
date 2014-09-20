@@ -169,6 +169,8 @@ all-obj-y += $(common-obj-y)
 all-obj-$(CONFIG_SOFTMMU) += $(block-obj-y)
 
 all-obj-y += ../uae/qemu-uae-cpu.o
+all-obj-y += ../uae/qemu-uae-main.o
+all-obj-y += ../uae/qemu-uae-slirp.o
 
 # build either PROG or PROGW
 $(QEMU_PROG_BUILD): $(all-obj-y) ../libqemuutil.a ../libqemustub.a

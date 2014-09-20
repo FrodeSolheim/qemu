@@ -45,7 +45,6 @@ CFLAGS="$CFLAGS" ./configure \
 --disable-curses \
 --disable-curl \
 --disable-bluez \
---disable-slirp \
 --disable-kvm \
 --disable-rdma \
 --disable-user \

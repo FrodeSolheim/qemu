@@ -17,48 +17,22 @@
  */
 
 #include "hw/hw.h"
-#include "hw/timer/m48t59.h"
-#include "hw/i386/pc.h"
-#include "hw/char/serial.h"
-#include "hw/block/fdc.h"
 #include "net/net.h"
 #include "sysemu/sysemu.h"
-#include "hw/isa/isa.h"
-#include "hw/pci/pci.h"
-#include "hw/pci/pci_host.h"
 #include "hw/ppc/ppc.h"
 #include "hw/boards.h"
 #include "qemu/log.h"
 #include "hw/ide.h"
 #include "hw/loader.h"
-#include "hw/timer/mc146818rtc.h"
-#include "hw/isa/pc87312.h"
-#include "sysemu/blockdev.h"
-#include "sysemu/arch_init.h"
-#include "sysemu/qtest.h"
-#include "exec/address-spaces.h"
-#include "elf.h"
 #include "cpu-models.h"
 #include "helper_regs.h"
 #include "qemu/module.h"
 #include "sysemu/cpus.h"
+#include "qemu-uae.h"
 
 #include "uae/log.h"
 #include "uae/ppc.h"
-#include "qemu-uae.h"
-
-#ifdef UAE
-#error UAE should not be defined here
-#endif
-
-/* Increase this when changes are not backwards compatible */
-#define QEMU_UAE_VERSION_MAJOR 2
-
-/* Increase this when important changes are made */
-#define QEMU_UAE_VERSION_MINOR 0
-
-/* Just increase this when the update is insignificant */
-#define QEMU_UAE_VERSION_REVISION 1
+#include "uae/qemu.h"
 
 #define BUSFREQ 66000000UL
 #define TBFREQ 16600000UL
@@ -67,13 +41,10 @@
 static struct {
     CPUPPCState *env;
     PowerPCCPU *cpu;
-    bool started;
-    bool exit_main_loop;
-    bool main_loop_exited;
     int cpu_state;
     QemuThread pause_thread;
     uint32_t hid1;
-
+    bool started;
 } state;
 
 static uint64_t indirect_read(void *opaque, hwaddr addr, unsigned size)
@@ -117,23 +88,19 @@ static const MemoryRegionOps indirect_ops = {
     },
 };
 
+/** Deprecated, use qemu_uae_version instead */
 void ppc_cpu_version(int *major, int *minor, int *revision)
 {
-    *major = QEMU_UAE_VERSION_MAJOR;
-    *minor = QEMU_UAE_VERSION_MINOR;
-    *revision = QEMU_UAE_VERSION_REVISION;
+    //return qemu_uae_version(major, minor, revision);
+    *major = 2;
+    *minor = 0;
+    *revision = 2;
 }
 
 static void qemu_uae_machine_reset(void *opaque)
 {
     PowerPCCPU *cpu = opaque;
     cpu_reset(CPU(cpu));
-}
-
-static void configure_accelerator(void)
-{
-    /* Allocate translation buffer (what is a suitable size?) */
-    tcg_exec_init(32 * 1024 * 1024);
 }
 
 static bool qemu_uae_machine_init(const char *model)
@@ -155,44 +122,9 @@ static bool initialize(const char *model)
     if (initialized) {
         return false;
     }
-    int major, minor, revision;
-    ppc_cpu_version(&major, &minor, &revision);
-    uae_log("QEMU: Initialize PPC CPU (QEMU %s + API %d.%d.%d)\n",
-            qemu_get_version(), major, minor, revision);
     initialized = true;
 
-    /* Initialize the class system (and probably other stuff) */
-    uae_log("QEMU: MODULE_INIT_QOM\n");
-    module_call_init(MODULE_INIT_QOM);
-
-    /* Initialize runstate transition structures */
-    runstate_init();
-
-    /* qemu_init_main_loop -> qemu_signal_init installs signals */
-    /* FIXME: could conflict with UAE */
-    if (qemu_init_main_loop()) {
-        fprintf(stderr, "qemu_init_main_loop failed\n");
-        exit(1);
-    }
-
-    /* Initialize memory map structures, etc */
-    cpu_exec_init_all();
-
-    /* Calls tcg_exec_init */
-    configure_accelerator();
-
-    /* Initialize conditions and mutex needed by CPU emulation */
-    qemu_init_cpu_loop();
-
-    /* Lock qemu_global_mutex */
     qemu_mutex_lock_iothread();
-
-    /* Configure timing method (using clock-based timing) */
-    configure_icount(NULL);
-
-    /*  */
-    // qemu_add_globals();
-    qemu_thread_naming(true);
 
     /* Create CPU */
     if (!qemu_uae_machine_init(model)) {
@@ -217,6 +149,9 @@ static bool initialize(const char *model)
 
 bool ppc_cpu_init(const char* model, uint32_t hid1)
 {
+    /* In case qemu_uae_init hasn't been called by the user yet */
+    qemu_uae_init();
+
     const char *qemu_model = model;
     if (strcasecmp(model, "603ev") == 0) {
         qemu_model = "603e7v1";
@@ -226,6 +161,11 @@ bool ppc_cpu_init(const char* model, uint32_t hid1)
     uae_log("QEMU: ppc_cpu_init_with_model %s => %s\n", model, qemu_model);
     state.hid1 = hid1;
     return initialize(qemu_model);
+}
+
+bool qemu_uae_ppc_init(const char* model, uint32_t hid1)
+{
+    return ppc_cpu_init(model, hid1);
 }
 
 struct UAEregion
@@ -361,13 +301,24 @@ void ppc_cpu_atomic_cancel_ext_exception(void)
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 0);
 }
 
-bool qemu_uae_main_loop_should_exit(void)
-{
-    return state.exit_main_loop;
-}
-
 void ppc_cpu_run_continuous(void)
 {
+#if 1
+    uae_log("QEMU: ppc_cpu_run_continuous RETURNING\n");
+
+    qemu_uae_wait_until_started();
+
+    qemu_mutex_lock_iothread();
+#if 0
+    cpu_enable_ticks();
+    runstate_set(RUN_STATE_RUNNING);
+    vm_state_notify(1, RUN_STATE_RUNNING);
+#endif
+    resume_all_vcpus();
+
+    qemu_mutex_unlock_iothread();
+
+#else
     uae_log("QEMU: Running main loop\n");
     qemu_mutex_lock_iothread();
 
@@ -380,6 +331,7 @@ void ppc_cpu_run_continuous(void)
 
     /* The main loop iteration unlocks and relocks the iothread lock */
     main_loop();
+#endif
 }
 
 void PPCCALL ppc_cpu_reset(void)
@@ -427,12 +379,14 @@ static void *pause_thread(void *arg)
 {
     qemu_mutex_lock_iothread();
 
+#if 0
     /* We cannot safely pause before the emulation has properly started */
     while (!state.started) {
         qemu_mutex_unlock_iothread();
         g_usleep(10 * 1000);
         qemu_mutex_lock_iothread();
     }
+#endif
 
     pause_all_vcpus();
     uae_log("QEMU: Paused! NIP = 0x%08x\n", state.env->nip);
