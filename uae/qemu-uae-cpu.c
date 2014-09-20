@@ -408,6 +408,21 @@ bool PPCCALL ppc_cpu_check_state(int check_state)
     return result;
 }
 
+static int log_fake_fprintf(FILE* f, const char *format, ...)
+{
+    UAE_LOG_VA_ARGS_FULL(format);
+    return 0;
+}
+
+static void qemu_uae_log_cpu_state(void)
+{
+    int flags = 0;
+    uae_log("QEMU: PPC CPU dump:\n");
+    /* Just passing a dummy (NULL) arg as FILE* since we provide a function
+     * which ignores the file anyway */
+    cpu_dump_state(ENV_GET_CPU(state.env), NULL, log_fake_fprintf, flags);
+}
+
 static void *pause_thread(void *arg)
 {
     qemu_mutex_lock_iothread();
@@ -423,6 +438,7 @@ static void *pause_thread(void *arg)
     uae_log("QEMU: Paused! NIP = 0x%08x\n", state.env->nip);
     state.cpu_state = PPC_CPU_STATE_PAUSED;
 
+    qemu_uae_log_cpu_state();
     qemu_mutex_unlock_iothread();
     return NULL;
 }
