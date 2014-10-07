@@ -38,7 +38,7 @@
 #define VERSION_MAJOR 3
 
 /* Increase this when important changes are made */
-#define VERSION_MINOR 1
+#define VERSION_MINOR 2
 
 /* Just increase this when the update is insignificant */
 #define VERSION_REVISION 0
@@ -56,10 +56,17 @@ static struct {
     bool exit_main_loop;
 } state;
 
+void qemu_uae_set_started(void)
+{
+    state.started = true;
+}
+
 void qemu_uae_wait_until_started(void)
 {
     while (!state.started) {
-        g_usleep(1);
+        qemu_mutex_unlock_iothread();
+        g_usleep(10);
+        qemu_mutex_lock_iothread();
     }
 }
 
@@ -148,7 +155,7 @@ static void qemu_uae_main(void)
 #if 0
     resume_all_vcpus();
 #endif
-    state.started = true;
+    qemu_uae_set_started();
 
     /* The main loop iteration unlocks and relocks the iothread lock */
     main_loop();
