@@ -169,6 +169,20 @@ bool qemu_uae_ppc_in_cpu_thread(void)
     return qemu_cpu_is_self(ENV_GET_CPU(state.env));
 }
 
+void qemu_uae_lock_if_needed(void)
+{
+    if (qemu_uae_ppc_in_cpu_thread() == false) {
+        qemu_mutex_lock_iothread();
+    }
+}
+
+void qemu_uae_unlock_if_needed(void)
+{
+    if (qemu_uae_ppc_in_cpu_thread() == false) {
+        qemu_mutex_unlock_iothread();
+    }
+}
+
 struct UAEregion
 {
     struct MemoryRegion *region;
@@ -207,9 +221,8 @@ static void ppc_cpu_map_add(PPCMemoryRegion *r)
 static void ppc_cpu_map_memory_single(PPCMemoryRegion *r)
 {
     int i;
-    uae_log("QEMU: Map single memory region %08x %08x '%s':\n", r->start,
-            r->size,
-            r->name);
+    uae_log("QEMU: Map single memory region %08x + %08x '%s' (%p):\n",
+            r->start, r->size, r->name, r->memory);
 
     if (r->alias == 0xffffffff) {
         for (i = 0; i < MAX_MEMORY_REGIONS; i++) {
@@ -282,51 +295,23 @@ static void ppc_cpu_map_memory_multi(PPCMemoryRegion *regions, int count)
 
 void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
 {
-    if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_lock_iothread();
-    }
+    qemu_uae_lock_if_needed();
     if (count >= 0)
         ppc_cpu_map_memory_multi(regions, count);
     else
         ppc_cpu_map_memory_single(regions);
-    if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_unlock_iothread();
-    }
+    qemu_uae_unlock_if_needed();
 }
 
 void ppc_cpu_atomic_raise_ext_exception(void)
 {
-    if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_lock_iothread();
-    }
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 1);
-    if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_unlock_iothread();
-    }
 }
 
 void ppc_cpu_atomic_cancel_ext_exception(void)
 {
-    if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_lock_iothread();
-    }
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 0);
-    if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_unlock_iothread();
-    }
 }
-
-#if 0
-/* Not needed, can use ppc_cpu_set_state PPC_CPU_STATE_RUNNING */
-void qemu_uae_ppc_start(void)
-{
-    uae_log("QEMU: Starting PPC CPU\n");
-    qemu_mutex_lock_iothread();
-    qemu_uae_wait_until_started();
-    resume_all_vcpus();
-    qemu_mutex_unlock_iothread();
-}
-#endif
 
 void ppc_cpu_run_continuous(void)
 {
@@ -385,36 +370,20 @@ static void qemu_uae_log_cpu_state(void)
     cpu_dump_state(ENV_GET_CPU(state.env), NULL, log_fake_fprintf, flags);
 }
 
-static void *pause_thread(void *arg)
-{
-    qemu_mutex_lock_iothread();
-
-    /* We cannot safely pause before the emulation has properly started */
-    qemu_uae_wait_until_started();
-
-    pause_all_vcpus();
-    uae_log("QEMU: Paused! NIP = 0x%08x\n", state.env->nip);
-    state.cpu_state = PPC_CPU_STATE_PAUSED;
-
-    qemu_uae_log_cpu_state();
-    qemu_mutex_unlock_iothread();
-    return NULL;
-}
-
 void PPCCALL ppc_cpu_set_state(int set_state)
 {
+    uae_log("QEMU: Set state %d\n", set_state);
+    qemu_uae_lock_if_needed();
     if (set_state == PPC_CPU_STATE_PAUSED) {
-        uae_log("QEMU: Pausing...\n");
-        qemu_thread_create(&state.pause_thread, "QEMU pause", pause_thread,
-                           NULL, QEMU_THREAD_DETACHED);
+        pause_all_vcpus();
+        state.cpu_state = PPC_CPU_STATE_PAUSED;
+        uae_log("QEMU: Paused!\n");
     } else if (set_state == PPC_CPU_STATE_RUNNING) {
-        uae_log("QEMU: Resuming...\n");
-        qemu_mutex_lock_iothread();
         resume_all_vcpus();
         state.cpu_state = PPC_CPU_STATE_RUNNING;
         uae_log("QEMU: Resumed!\n");
-        qemu_mutex_unlock_iothread();
     }
+    qemu_uae_unlock_if_needed();
 }
 
 /* Storage for callback functions set by UAE */
