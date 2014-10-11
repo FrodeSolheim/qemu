@@ -169,14 +169,14 @@ bool qemu_uae_ppc_in_cpu_thread(void)
     return qemu_cpu_is_self(ENV_GET_CPU(state.env));
 }
 
-void qemu_uae_lock_if_needed(void)
+static void qemu_uae_lock_if_needed(void)
 {
     if (qemu_uae_ppc_in_cpu_thread() == false) {
         qemu_mutex_lock_iothread();
     }
 }
 
-void qemu_uae_unlock_if_needed(void)
+static void qemu_uae_unlock_if_needed(void)
 {
     if (qemu_uae_ppc_in_cpu_thread() == false) {
         qemu_mutex_unlock_iothread();
@@ -303,14 +303,24 @@ void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
     qemu_uae_unlock_if_needed();
 }
 
-void ppc_cpu_atomic_raise_ext_exception(void)
+void qemu_uae_ppc_external_interrupt(bool enable)
 {
-    ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 1);
+    ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, enable ? 1 : 0);
 }
 
-void ppc_cpu_atomic_cancel_ext_exception(void)
+int qemu_uae_lock(int type)
 {
-    ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, 0);
+    int result = 0;
+    if (type == QEMU_UAE_LOCK_TRYLOCK) {
+        result = qemu_uae_mutex_trylock();
+    } else if (type == QEMU_UAE_LOCK_TRYLOCK_CANCEL) {
+        qemu_uae_mutex_trylock_cancel();
+    } else if (type == QEMU_UAE_LOCK_ACQUIRE) {
+        qemu_mutex_lock_iothread();
+    } else if (type == QEMU_UAE_LOCK_RELEASE) {
+        qemu_mutex_unlock_iothread();
+    }
+    return result;
 }
 
 void ppc_cpu_run_continuous(void)
@@ -378,6 +388,7 @@ void PPCCALL ppc_cpu_set_state(int set_state)
         pause_all_vcpus();
         state.cpu_state = PPC_CPU_STATE_PAUSED;
         uae_log("QEMU: Paused!\n");
+        qemu_uae_log_cpu_state();
     } else if (set_state == PPC_CPU_STATE_RUNNING) {
         resume_all_vcpus();
         state.cpu_state = PPC_CPU_STATE_RUNNING;

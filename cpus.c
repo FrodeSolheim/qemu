@@ -1058,6 +1058,41 @@ void qemu_mutex_lock_iothread(void)
     }
 }
 
+#ifdef QEMU_UAE
+
+static bool trylock_status;
+
+int qemu_uae_mutex_trylock(void)
+{
+    assert(tcg_enabled());
+
+    iothread_requesting_mutex = true;
+    int result = qemu_mutex_trylock(&qemu_global_mutex);
+    if (result) {
+        /* Lock was not acquired */
+        if (trylock_status == false) {
+            qemu_cpu_kick_thread(first_cpu);
+            trylock_status = true;
+        }
+    } else {
+        trylock_status = false;
+        iothread_requesting_mutex = false;
+        qemu_cond_broadcast(&qemu_io_proceeded_cond);
+    }
+    return result;
+}
+
+void qemu_uae_mutex_trylock_cancel(void)
+{
+    assert(tcg_enabled());
+    assert(trylock_status == true);
+
+    iothread_requesting_mutex = false;
+    trylock_status = false;
+}
+
+#endif
+
 void qemu_mutex_unlock_iothread(void)
 {
     qemu_mutex_unlock(&qemu_global_mutex);

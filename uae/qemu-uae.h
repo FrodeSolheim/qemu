@@ -6,7 +6,13 @@ void runstate_init(void);
 void qemu_tcg_wait_io_event(void);
 void qemu_wait_io_event_common(CPUState *cpu);
 
+ /* cpus.c */
+
+int qemu_uae_mutex_trylock(void);
+void qemu_uae_mutex_trylock_cancel(void);
+
 /* vl.c */
+
 void main_loop(void);
 bool main_loop_should_exit(void);
 
