@@ -120,7 +120,7 @@ static bool initialize(const char *model)
     }
     initialized = true;
 
-    qemu_mutex_lock_iothread();
+    qemu_uae_mutex_lock();
 
     /* Create CPU */
     if (!qemu_uae_machine_init(model)) {
@@ -139,7 +139,7 @@ static bool initialize(const char *model)
     /* Log CPU model identifier */
     uae_log("QEMU: CPU PVR 0x%08x\n", state.env->spr[SPR_PVR]);
 
-    qemu_mutex_unlock_iothread();
+    qemu_uae_mutex_unlock();
     return true;
 }
 
@@ -172,14 +172,14 @@ bool qemu_uae_ppc_in_cpu_thread(void)
 static void qemu_uae_lock_if_needed(void)
 {
     if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_lock_iothread();
+        qemu_uae_mutex_lock();
     }
 }
 
 static void qemu_uae_unlock_if_needed(void)
 {
     if (qemu_uae_ppc_in_cpu_thread() == false) {
-        qemu_mutex_unlock_iothread();
+        qemu_uae_mutex_unlock();
     }
 }
 
@@ -316,9 +316,9 @@ int qemu_uae_lock(int type)
     } else if (type == QEMU_UAE_LOCK_TRYLOCK_CANCEL) {
         qemu_uae_mutex_trylock_cancel();
     } else if (type == QEMU_UAE_LOCK_ACQUIRE) {
-        qemu_mutex_lock_iothread();
+        qemu_uae_mutex_lock();
     } else if (type == QEMU_UAE_LOCK_RELEASE) {
-        qemu_mutex_unlock_iothread();
+        qemu_uae_mutex_unlock();
     }
     return result;
 }
@@ -326,7 +326,7 @@ int qemu_uae_lock(int type)
 void ppc_cpu_run_continuous(void)
 {
     uae_log("QEMU: Running main loop\n");
-    qemu_mutex_lock_iothread();
+    qemu_uae_mutex_lock();
 
     cpu_enable_ticks();
     runstate_set(RUN_STATE_RUNNING);
@@ -352,17 +352,6 @@ void PPCCALL ppc_cpu_reset(void)
     tlb_flush(ENV_GET_CPU(state.env), 1);
 #endif
     tb_flush(state.env);
-}
-
-bool PPCCALL ppc_cpu_check_state(int check_state)
-{
-    qemu_mutex_lock_iothread();
-    bool result = state.cpu_state == check_state;
-#if 0
-    uae_log("%d vs %d\n", state.cpu_state, check_state);
-#endif
-    qemu_mutex_unlock_iothread();
-    return result;
 }
 
 static int log_fake_fprintf(FILE* f, const char *format, ...)

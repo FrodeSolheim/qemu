@@ -2,12 +2,13 @@
 #define QEMU_UAE_H
 
 void runstate_init(void);
-// void tcg_exec_all(void);
 void qemu_tcg_wait_io_event(void);
 void qemu_wait_io_event_common(CPUState *cpu);
 
  /* cpus.c */
 
+void qemu_uae_mutex_lock(void);
+void qemu_uae_mutex_unlock(void);
 int qemu_uae_mutex_trylock(void);
 void qemu_uae_mutex_trylock_cancel(void);
 

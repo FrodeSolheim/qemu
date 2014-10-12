@@ -713,6 +713,11 @@ static QemuMutex qemu_global_mutex;
 static QemuCond qemu_io_proceeded_cond;
 static bool iothread_requesting_mutex;
 
+#ifdef QEMU_UAE
+static QemuCond qemu_uae_proceeded_cond;
+static bool uae_requesting_mutex;
+#endif
+
 static QemuThread io_thread;
 
 static QemuThread *tcg_cpu_thread;
@@ -732,6 +737,10 @@ void qemu_init_cpu_loop(void)
     qemu_cond_init(&qemu_work_cond);
     qemu_cond_init(&qemu_io_proceeded_cond);
     qemu_mutex_init(&qemu_global_mutex);
+
+#ifdef QEMU_UAE
+    qemu_cond_init(&qemu_uae_proceeded_cond);
+#endif
 
     qemu_thread_get_self(&io_thread);
 }
@@ -836,6 +845,12 @@ void qemu_tcg_wait_io_event(void)
     while (iothread_requesting_mutex) {
         qemu_cond_wait(&qemu_io_proceeded_cond, &qemu_global_mutex);
     }
+
+#ifdef QEMU_UAE
+    while (uae_requesting_mutex) {
+        qemu_cond_wait(&qemu_uae_proceeded_cond, &qemu_global_mutex);
+    }
+#endif
 
     CPU_FOREACH(cpu) {
         qemu_wait_io_event_common(cpu);
@@ -1058,26 +1073,51 @@ void qemu_mutex_lock_iothread(void)
     }
 }
 
+void qemu_mutex_unlock_iothread(void)
+{
+    qemu_mutex_unlock(&qemu_global_mutex);
+}
+
 #ifdef QEMU_UAE
 
-static bool trylock_status;
+void qemu_uae_mutex_lock(void)
+{
+    if (!tcg_enabled()) {
+        qemu_mutex_lock(&qemu_global_mutex);
+    } else {
+        uae_requesting_mutex = true;
+        if (qemu_mutex_trylock(&qemu_global_mutex)) {
+            qemu_cpu_kick_thread(first_cpu);
+            qemu_mutex_lock(&qemu_global_mutex);
+        }
+        uae_requesting_mutex = false;
+        qemu_cond_broadcast(&qemu_uae_proceeded_cond);
+    }
+}
+
+void qemu_uae_mutex_unlock(void)
+{
+    qemu_mutex_unlock(&qemu_global_mutex);
+}
+
+static bool uae_trylock_status;
 
 int qemu_uae_mutex_trylock(void)
 {
     assert(tcg_enabled());
 
-    iothread_requesting_mutex = true;
+    uae_requesting_mutex = true;
     int result = qemu_mutex_trylock(&qemu_global_mutex);
     if (result) {
         /* Lock was not acquired */
-        if (trylock_status == false) {
+        if (uae_trylock_status == false) {
             qemu_cpu_kick_thread(first_cpu);
-            trylock_status = true;
+            uae_trylock_status = true;
         }
     } else {
-        trylock_status = false;
-        iothread_requesting_mutex = false;
-        qemu_cond_broadcast(&qemu_io_proceeded_cond);
+        uae_trylock_status = false;
+        uae_requesting_mutex = false;
+        qemu_cond_broadcast(&qemu_uae_proceeded_cond);
     }
     return result;
 }
@@ -1085,18 +1125,13 @@ int qemu_uae_mutex_trylock(void)
 void qemu_uae_mutex_trylock_cancel(void)
 {
     assert(tcg_enabled());
-    assert(trylock_status == true);
+    assert(uae_trylock_status == true);
 
-    iothread_requesting_mutex = false;
-    trylock_status = false;
+    uae_requesting_mutex = false;
+    uae_trylock_status = false;
 }
 
 #endif
-
-void qemu_mutex_unlock_iothread(void)
-{
-    qemu_mutex_unlock(&qemu_global_mutex);
-}
 
 static int all_vcpus_paused(void)
 {

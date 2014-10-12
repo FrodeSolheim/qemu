@@ -64,9 +64,9 @@ void qemu_uae_set_started(void)
 void qemu_uae_wait_until_started(void)
 {
     while (!state.started) {
-        qemu_mutex_unlock_iothread();
+        qemu_uae_mutex_unlock();
         g_usleep(10);
-        qemu_mutex_lock_iothread();
+        qemu_uae_mutex_lock();
     }
 }
 
@@ -114,7 +114,7 @@ static bool initialize(void)
     qemu_init_cpu_loop();
 
     /* Lock qemu_global_mutex */
-    qemu_mutex_lock_iothread();
+    qemu_uae_mutex_lock();
 
     /* Configure timing method (using clock-based timing) */
     configure_icount(NULL);
@@ -140,14 +140,14 @@ static bool initialize(void)
     /* Log CPU model identifier */
     uae_log("QEMU: CPU PVR 0x%08x\n", state.env->spr[SPR_PVR]);
 #endif
-    qemu_mutex_unlock_iothread();
+    qemu_uae_mutex_unlock();
     return true;
 }
 
 static void qemu_uae_main(void)
 {
     uae_log("QEMU: Running main loop\n");
-    qemu_mutex_lock_iothread();
+    qemu_uae_mutex_lock();
 //#if 0
     cpu_enable_ticks();
     runstate_set(RUN_STATE_RUNNING);
