@@ -38,7 +38,7 @@
 #define VERSION_MAJOR 3
 
 /* Increase this when important changes are made */
-#define VERSION_MINOR 3
+#define VERSION_MINOR 5
 
 /* Just increase this when the update is insignificant */
 #define VERSION_REVISION 0
@@ -99,7 +99,7 @@ static bool initialize(void)
 
     /* qemu_init_main_loop -> qemu_signal_init installs signals */
     /* FIXME: could conflict with UAE */
-    if (qemu_init_main_loop()) {
+    if (qemu_init_main_loop(&error_abort)) {
         fprintf(stderr, "qemu_init_main_loop failed\n");
         exit(1);
     }
@@ -117,7 +117,7 @@ static bool initialize(void)
     qemu_uae_mutex_lock();
 
     /* Configure timing method (using clock-based timing) */
-    configure_icount(NULL);
+    configure_icount(NULL, &error_abort);
 
     /*  */
     // qemu_add_globals();

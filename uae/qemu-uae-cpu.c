@@ -234,7 +234,7 @@ static void ppc_cpu_map_memory_single(PPCMemoryRegion *r)
                         (uint32_t)mem->addr,
                         mem->size);
                 memory_region_del_subregion(get_system_memory(), mem->region);
-                memory_region_destroy(mem->region);
+                object_unparent(OBJECT(mem->region));
                 mem->region = NULL;
             }
         }
@@ -280,7 +280,7 @@ static void ppc_cpu_map_memory_multi(PPCMemoryRegion *regions, int count)
         if (mem->region == NULL)
             continue;
         memory_region_del_subregion(get_system_memory(), mem->region);
-        memory_region_destroy(mem->region);
+        object_unparent(OBJECT(mem->region));
         mem->region = NULL;
     }
 
