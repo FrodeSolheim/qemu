@@ -88,7 +88,7 @@ static const MemoryRegionOps indirect_ops = {
 };
 
 /** Deprecated, use qemu_uae_version instead */
-void ppc_cpu_version(int *major, int *minor, int *revision)
+void PPCAPI ppc_cpu_version(int *major, int *minor, int *revision)
 {
     return qemu_uae_version(major, minor, revision);
 }
@@ -143,7 +143,7 @@ static bool initialize(const char *model)
     return true;
 }
 
-bool ppc_cpu_init(const char* model, uint32_t hid1)
+bool PPCAPI ppc_cpu_init(const char* model, uint32_t hid1)
 {
     /* In case qemu_uae_init hasn't been called by the user yet */
     qemu_uae_init();
@@ -159,12 +159,12 @@ bool ppc_cpu_init(const char* model, uint32_t hid1)
     return initialize(qemu_model);
 }
 
-bool qemu_uae_ppc_init(const char* model, uint32_t hid1)
+bool PPCAPI qemu_uae_ppc_init(const char* model, uint32_t hid1)
 {
     return ppc_cpu_init(model, hid1);
 }
 
-bool qemu_uae_ppc_in_cpu_thread(void)
+bool PPCAPI qemu_uae_ppc_in_cpu_thread(void)
 {
     return qemu_cpu_is_self(ENV_GET_CPU(state.env));
 }
@@ -293,7 +293,7 @@ static void ppc_cpu_map_memory_multi(PPCMemoryRegion *regions, int count)
         ppc_cpu_map_add(&regions[i]);
 }
 
-void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
+void PPCAPI ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
 {
     qemu_uae_lock_if_needed();
     if (count >= 0)
@@ -303,12 +303,12 @@ void ppc_cpu_map_memory(PPCMemoryRegion *regions, int count)
     qemu_uae_unlock_if_needed();
 }
 
-void qemu_uae_ppc_external_interrupt(bool enable)
+void PPCAPI qemu_uae_ppc_external_interrupt(bool enable)
 {
     ppc_set_irq(state.cpu, PPC_INTERRUPT_EXT, enable ? 1 : 0);
 }
 
-int qemu_uae_lock(int type)
+int PPCAPI qemu_uae_lock(int type)
 {
     int result = 0;
     if (type == QEMU_UAE_LOCK_TRYLOCK) {
@@ -323,7 +323,7 @@ int qemu_uae_lock(int type)
     return result;
 }
 
-void ppc_cpu_run_continuous(void)
+void PPCAPI ppc_cpu_run_continuous(void)
 {
     uae_log("QEMU: Running main loop\n");
     qemu_uae_mutex_lock();
@@ -339,7 +339,7 @@ void ppc_cpu_run_continuous(void)
     main_loop();
 }
 
-void PPCCALL ppc_cpu_reset(void)
+void PPCAPI PPCCALL ppc_cpu_reset(void)
 {
     uae_log("QEMU: Reset CPU\n");
     cpu_reset(ENV_GET_CPU(state.env));
@@ -369,7 +369,7 @@ static void qemu_uae_log_cpu_state(void)
     cpu_dump_state(ENV_GET_CPU(state.env), NULL, log_fake_fprintf, flags);
 }
 
-void PPCCALL ppc_cpu_set_state(int set_state)
+void PPCAPI ppc_cpu_set_state(int set_state)
 {
     uae_log("QEMU: Set state %d\n", set_state);
     qemu_uae_lock_if_needed();
@@ -388,8 +388,8 @@ void PPCCALL ppc_cpu_set_state(int set_state)
 
 /* Storage for callback functions set by UAE */
 
-uae_log_function uae_log = NULL;
-uae_ppc_io_mem_read_function uae_ppc_io_mem_read = NULL;
-uae_ppc_io_mem_write_function uae_ppc_io_mem_write = NULL;
-uae_ppc_io_mem_read64_function uae_ppc_io_mem_read64 = NULL;
-uae_ppc_io_mem_write64_function uae_ppc_io_mem_write64 = NULL;
+uae_log_function PPCAPI uae_log = NULL;
+uae_ppc_io_mem_read_function PPCAPI uae_ppc_io_mem_read = NULL;
+uae_ppc_io_mem_write_function PPCAPI uae_ppc_io_mem_write = NULL;
+uae_ppc_io_mem_read64_function PPCAPI uae_ppc_io_mem_read64 = NULL;
+uae_ppc_io_mem_write64_function PPCAPI uae_ppc_io_mem_write64 = NULL;

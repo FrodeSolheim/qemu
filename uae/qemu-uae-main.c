@@ -70,7 +70,7 @@ void qemu_uae_wait_until_started(void)
     }
 }
 
-void qemu_uae_version(int *major, int *minor, int *revision)
+void PPCAPI qemu_uae_version(int *major, int *minor, int *revision)
 {
     *major = VERSION_MAJOR;
     *minor = VERSION_MINOR;
@@ -170,7 +170,7 @@ static void *main_thread_function(void *arg)
 
 static QemuThread main_thread;
 
-void qemu_uae_init(void)
+void PPCAPI qemu_uae_init(void)
 {
     static bool initialized = false;
     if (initialized) {
@@ -188,7 +188,7 @@ void qemu_uae_init(void)
     initialized = true;
 }
 
-void qemu_uae_start(void)
+void PPCAPI qemu_uae_start(void)
 {
     static bool initialized = false;
     if (initialized) {
@@ -200,7 +200,7 @@ void qemu_uae_start(void)
                        NULL, QEMU_THREAD_DETACHED);
 }
 
-bool qemu_uae_main_loop_should_exit(void)
+bool PPCAPI qemu_uae_main_loop_should_exit(void)
 {
     return state.exit_main_loop;
 }
