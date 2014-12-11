@@ -38,7 +38,7 @@
 #define VERSION_MAJOR 3
 
 /* Increase this when important changes are made */
-#define VERSION_MINOR 5
+#define VERSION_MINOR 6
 
 /* Just increase this when the update is insignificant */
 #define VERSION_REVISION 0
