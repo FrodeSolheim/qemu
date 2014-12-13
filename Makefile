@@ -173,6 +173,13 @@ subdir-pixman: pixman/Makefile
 
 pixman/Makefile: $(SRC_PATH)/pixman/configure
 	(cd pixman; CFLAGS="$(CFLAGS) -fPIC $(extra_cflags) $(extra_ldflags)" $(SRC_PATH)/pixman/configure $(AUTOCONF_HOST) --disable-gtk --disable-shared --enable-static)
+	rm -f pixman/test-driver
+	rm -f pixman/test/check-formats
+	rm -f pixman/test/matrix-test
+	rm -f pixman/test/pixel-test
+	rm -f pixman/test/scaling-bench
+	rm -f pixman/test/thread-test
+	echo "all:\n" > pixman/test/Makefile
 
 $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
