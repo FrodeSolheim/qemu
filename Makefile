@@ -382,6 +382,10 @@ ifdef CONFIG_VIRTFS
 endif
 
 install-datadir:
+	@echo ""
+	@echo "ERROR: qemu-uae is not intended to be \"installed\""
+	@echo ""
+	@exit 1
 	$(INSTALL_DIR) "$(DESTDIR)$(qemu_datadir)"
 
 install-localstatedir:
