@@ -179,7 +179,7 @@ pixman/Makefile: $(SRC_PATH)/pixman/configure
 	rm -f pixman/test/pixel-test
 	rm -f pixman/test/scaling-bench
 	rm -f pixman/test/thread-test
-	echo "all:\n" > pixman/test/Makefile
+	echo "all:" > pixman/test/Makefile
 
 $(SRC_PATH)/pixman/configure:
 	(cd $(SRC_PATH)/pixman; autoreconf -v --install)
