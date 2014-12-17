@@ -1,6 +1,7 @@
 #!/bin/sh
 
 if [ "$1" != "--target-list=ppc-softmmu" ]; then
+echo "configuring qemu-uae $@"
 
 CFLAGS="-DQEMU_UAE $CFLAGS"
 
@@ -32,7 +33,7 @@ MINGW32*)
 ;;
 esac
 
-CFLAGS="$CFLAGS" exec ./configure \
+CFLAGS="$CFLAGS" ./configure \
 --target-list=ppc-softmmu \
 --disable-tools \
 --disable-werror \
@@ -76,8 +77,10 @@ CFLAGS="$CFLAGS" exec ./configure \
 --disable-pie \
 --without-system-pixman \
 "$@"
+exit $?
 
 fi
+
 #!/bin/sh
 #
 # qemu configure script (c) 2003 Fabrice Bellard
