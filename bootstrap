@@ -3,12 +3,7 @@ echo "Bootstrapping qemu-uae..."
 git submodule update --init dtc
 git submodule update --init pixman
 cd pixman
-./autogen.sh
+NOCONFIGURE=1 ./autogen.sh
 rm -f test-driver
-rm -f test/check-formats
-rm -f test/matrix-test
-rm -f test/pixel-test
-rm -f test/scaling-bench
-rm -f test/thread-test
 cd ..
 echo "Bootstrap done, you can now run ./configure"
