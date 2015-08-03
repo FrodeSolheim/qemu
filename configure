@@ -76,6 +76,7 @@ CFLAGS="$CFLAGS" ./configure \
 --disable-coroutine-pool \
 --disable-pie \
 --without-system-pixman \
+--disable-linux-aio \
 "$@"
 exit $?
 
