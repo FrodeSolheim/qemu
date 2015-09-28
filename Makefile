@@ -172,7 +172,7 @@ subdir-pixman: pixman/Makefile
 	$(call quiet-command,$(MAKE) $(SUBDIR_MAKEFLAGS) -C pixman V="$(V)" all,)
 
 pixman/Makefile: $(SRC_PATH)/pixman/configure
-	(cd pixman; CFLAGS="$(CFLAGS) -fPIC $(extra_cflags) $(extra_ldflags)" $(SRC_PATH)/pixman/configure $(AUTOCONF_HOST) --disable-gtk --disable-shared --enable-static)
+	(cd pixman; CFLAGS="$(CFLAGS) -fPIC $(extra_cflags) $(extra_ldflags)" $(SRC_PATH)/pixman/configure $(AUTOCONF_HOST) --disable-gtk --disable-shared --enable-static --disable-mmx)
 	rm -f pixman/test-driver
 	rm -f pixman/test/check-formats
 	rm -f pixman/test/matrix-test
