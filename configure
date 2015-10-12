@@ -24,7 +24,7 @@ CFLAGS="-DDEBUG_UNASSIGNED $CFLAGS"
 
 OS_NAME=`uname -s`
 case $OS_NAME in
-MINGW32*)
+MINGW*)
 	export CC=gcc
 	export CXX=g++
 ;;
