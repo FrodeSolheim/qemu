@@ -56,6 +56,8 @@
 #endif
 
 #if defined(_WIN64)
+/* Include setjmp.h now to make sure it does not replace our define. */
+#include <setjmp.h>
 /* On w64, setjmp is implemented by _setjmp which needs a second parameter.
  * If this parameter is NULL, longjump does no stack unwinding.
  * That is what we need for QEMU. Passing the value of register rsp (default)
