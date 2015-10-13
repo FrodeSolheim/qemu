@@ -188,11 +188,15 @@ static void numa_node_parse(NumaNodeOptions *node, QemuOpts *opts, Error **errp)
 
     if (node->has_mem) {
         uint64_t mem_size = node->mem;
+#ifdef QEMU_UAE
+        /* Quick hack for undefined reference */
+#else
         const char *mem_str = qemu_opt_get(opts, "mem");
         /* Fix up legacy suffix-less format */
         if (g_ascii_isdigit(mem_str[strlen(mem_str) - 1])) {
             mem_size <<= 20;
         }
+#endif
         numa_info[nodenr].node_mem = mem_size;
     }
     if (node->has_memdev) {

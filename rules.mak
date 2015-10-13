@@ -381,3 +381,7 @@ QEMU_CFLAGS += -I$(SRC_PATH)/../include
 
 # only on of the above dirs will exist, so...
 QEMU_CFLAGS += -Wno-missing-include-dirs
+
+ifeq ($(CONFIG_STATIC),y)
+LIBS += -liconv
+endif

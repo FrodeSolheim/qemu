@@ -2888,7 +2888,9 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
         }
 
         sz = qemu_opt_get_size(opts, "size", ram_size);
-
+#ifdef QEMU_UAE
+        /* Quick hack for undefined reference */
+#else
         /* Fix up legacy suffix-less format */
         if (g_ascii_isdigit(mem_str[strlen(mem_str) - 1])) {
             uint64_t overflow_check = sz;
@@ -2899,6 +2901,7 @@ static void set_memory_options(uint64_t *ram_slots, ram_addr_t *maxram_size,
                 exit(EXIT_FAILURE);
             }
         }
+#endif
     }
 
     /* backward compatibility behaviour for case "-m 0" */
