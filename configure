@@ -76,6 +76,8 @@ CFLAGS="$CFLAGS" ./configure \
 --disable-pie \
 --without-system-pixman \
 --disable-linux-aio \
+--disable-bzip2 \
+--disable-zlib-test \
 "$@"
 exit $?
 
