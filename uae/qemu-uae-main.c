@@ -38,10 +38,10 @@
 #define VERSION_MAJOR 3
 
 /* Increase this when important changes are made */
-#define VERSION_MINOR 6
+#define VERSION_MINOR 8
 
 /* Just increase this when the update is insignificant */
-#define VERSION_REVISION 0
+#define VERSION_REVISION 1
 
 #if QEMU_UAE_VERSION_MAJOR != VERSION_MAJOR
 #error Major version mismatch between UAE and QEMU-UAE
