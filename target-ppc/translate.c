@@ -11407,6 +11407,9 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
                 inval = handler->inval1;
             }
 
+#ifdef QEMU_UAE
+            /* Toni Wilen confirmed that real CSPPC PPC CPU ignores this. */
+#else
             if (unlikely((ctx.opcode & inval) != 0)) {
                 if (qemu_log_enabled()) {
                     qemu_log("invalid bits: %08x for opcode: "
@@ -11418,6 +11421,7 @@ static inline void gen_intermediate_code_internal(PowerPCCPU *cpu,
                 gen_inval_exception(ctxp, POWERPC_EXCP_INVAL_INVAL);
                 break;
             }
+#endif
         }
         (*(handler->handler))(&ctx);
 #if defined(DO_PPC_STATISTICS)
