@@ -112,7 +112,7 @@ fsemu-bootstrap:
 
 fsemu-configure:
 ifeq ($(os),Windows)
-	./configure --static
+	./configure --static --python=/mingw64/bin/python2
 else
 	./configure
 endif
