@@ -1,0 +1,39 @@
+#!/bin/sh
+set -e
+
+PACKAGE=pixman-0.40.0
+URL=https://cairographics.org/releases/pixman-0.40.0.tar.gz
+SHA256=6d200dec3740d9ec4ec8d1180e25779c00bc749f94278c8b9021f5534db223fc
+REVISION=0
+
+. fsdeps/dep.sh
+
+python3 fsdeps/download.py "$URL" sha256:$SHA256
+
+rm -Rf fsdeps/_build && mkdir fsdeps/_build && cd fsdeps/_build
+tar xf ../_sources/$PACKAGE.tar.gz
+cd $PACKAGE
+
+if [ $SYSTEM_OS = "Linux" ]; then
+CFLAGS="-g -O2 -fPIC"
+else
+CFLAGS="-g -O2"
+fi
+
+sed -i.tmp "s/SUBDIRS = pixman demos test/SUBDIRS = pixman/g" Makefile.in
+
+./configure \
+	CFLAGS="$CFLAGS" \
+	--prefix=$PREFIX \
+	--enable-static \
+	--disable-shared \
+	--disable-dependency-tracking \
+	--disable-mmx \
+	--disable-ssse3 \
+	--disable-libpng \
+	--disable-gtk
+
+make V=1
+make install
+
+touch $INSTALLED

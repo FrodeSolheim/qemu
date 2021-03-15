@@ -1,3 +1,0 @@
-# QEMU-UAE
-
-FIXME

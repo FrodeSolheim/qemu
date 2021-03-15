@@ -1,0 +1,30 @@
+#!/bin/sh
+set -e
+
+PACKAGE=dtc-1.6.0
+URL=https://github.com/qemu/dtc/archive/v1.6.0.tar.gz
+SHA256=3d15dee7126a6c4a015ab47ec908cab13e39774b0315efaaebb223cb4a4d349c
+REVISION=1
+
+. fsdeps/dep.sh
+
+python3 fsdeps/download.py "$URL" sha256:$SHA256
+
+rm -Rf fsdeps/_build && mkdir fsdeps/_build && cd fsdeps/_build
+tar xf ../_sources/v1.6.0.tar.gz
+cd $PACKAGE
+
+sed -i.tmp "s/all: \$(BIN) libfdt/all: libfdt/g" Makefile
+# sed -i.tmp "s/install-lib:all/install-lib:/g" Makefile
+
+make libfdt
+make install-includes PREFIX=$PREFIX
+make install-lib PREFIX=$PREFIX
+
+rm -f $PREFIX/lib/libfdt.dll*
+rm -f $PREFIX/lib/libfdt-*.dylib*
+rm -f $PREFIX/lib/libfdt.dylib*
+rm -f $PREFIX/lib/libfdt-*.so*
+rm -f $PREFIX/lib/libfdt.so*
+
+touch $INSTALLED
