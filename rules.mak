@@ -370,15 +370,6 @@ define unnest-vars
 
 endef
 
-# set include path for FS-UAE ppc.h
-QEMU_CFLAGS += -I$(SRC_PATH)/../fs-uae/src/include
-
-# set include path for WINUAE ppc.h
-QEMU_CFLAGS += -I$(SRC_PATH)/../include
-
-# only on of the above dirs will exist, so...
-QEMU_CFLAGS += -Wno-missing-include-dirs
-
 ifeq ($(CONFIG_STATIC),y)
 LIBS += -liconv
 endif
