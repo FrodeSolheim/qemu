@@ -2,8 +2,8 @@
 
 set -e
 
-fsdeps/dep/gettext
 fsdeps/dep/glib-static
 fsdeps/dep/libfdt-static
+fsdeps/dep/libintl-static
 fsdeps/dep/pixman-static
 fsdeps/dep/zlib-static

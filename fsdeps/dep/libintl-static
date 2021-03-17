@@ -9,13 +9,6 @@ REVISION=0
 
 . fsdeps/dep.sh
 
-# if test -e $PREFIX/installed/$PACKAGE ; then
-# if [ "$REINSTALL" != "1" ]; then
-# echo "$PACKAGE is already installed"
-# exit 0
-# fi
-# fi
-
 python3 fsdeps/download.py \
 https://ftp.gnu.org/pub/gnu/gettext/$PACKAGE.tar.gz \
 sha256:$CHECKSUM
@@ -28,6 +21,8 @@ cd $PACKAGE
 # --disable-java
 cd gettext-runtime
 ./configure --prefix=$PREFIX \
+--disable-shared \
+--enable-static \
 --disable-csharp \
 --disable-java
 make
