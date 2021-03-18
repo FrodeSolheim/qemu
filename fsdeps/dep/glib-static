@@ -4,7 +4,7 @@ set -e
 # libffi?
 # libiconv?
 
-fsdeps/dep/gettext
+fsdeps/dep/libintl-static
 
 PACKAGE=glib-2.66.7
 CHECKSUM=09f158769f6f26b31074e15b1ac80ec39b13b53102dfae66cfe826fb2cc65502
